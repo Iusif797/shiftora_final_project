@@ -1,0 +1,267 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  owner
+  manager
+  employee
+}
+
+enum ShiftStatus {
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum AssignmentStatus {
+  ASSIGNED
+  CONFIRMED
+  DECLINED
+  COMPLETED
+  CANCELLED
+}
+
+enum AnomalyType {
+  LATE_ARRIVAL
+  MISSED_SHIFT
+  EARLY_LEAVE
+}
+
+enum AnomalySeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  role          UserRole  @default(employee)
+  restaurantId  String?
+
+  sessions      Session[]
+  accounts      Account[]
+  employee      Employee?
+  restaurant    Restaurant? @relation("owner")
+  createdShifts Shift[]
+  assets        Asset[]
+  invitations   Invitation[] @relation("inviter")
+
+  @@index([restaurantId])
+  @@index([email])
+}
+
+model Asset {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileId      String
+  url         String
+  filename    String
+  contentType String
+  sizeBytes   Int
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Restaurant {
+  id          String   @id @default(cuid())
+  name        String
+  address     String?
+  phone       String?
+  timezone    String   @default("UTC")
+  latitude    Float?
+  longitude   Float?
+  ownerId     String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner       User          @relation("owner", fields: [ownerId], references: [id])
+  employees   Employee[]
+  shifts      Shift[]
+  checkins    Checkin[]
+  anomalies   Anomaly[]
+  invitations Invitation[]
+}
+
+model Employee {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  restaurantId String
+  position     String?
+  hourlyRate   Float?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurant  Restaurant        @relation(fields: [restaurantId], references: [id])
+  assignments ShiftAssignment[]
+  checkins    Checkin[]
+  anomalies   Anomaly[]
+
+  @@index([restaurantId])
+}
+
+model Shift {
+  id           String      @id @default(cuid())
+  restaurantId String
+  title        String
+  startTime    DateTime
+  endTime      DateTime
+  status       ShiftStatus @default(SCHEDULED)
+  notes        String?
+  maxEmployees Int?
+  createdById  String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  restaurant  Restaurant        @relation(fields: [restaurantId], references: [id])
+  createdBy   User              @relation(fields: [createdById], references: [id])
+  assignments ShiftAssignment[]
+
+  @@index([restaurantId])
+  @@index([startTime])
+  @@index([restaurantId, startTime])
+}
+
+model ShiftAssignment {
+  id         String           @id @default(cuid())
+  shiftId    String
+  employeeId String
+  status     AssignmentStatus @default(ASSIGNED)
+  createdAt  DateTime         @default(now())
+
+  shift     Shift     @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  employee  Employee  @relation(fields: [employeeId], references: [id])
+  checkins  Checkin[]
+  anomalies Anomaly[]
+
+  @@index([shiftId])
+  @@index([employeeId])
+}
+
+model Checkin {
+  id                String    @id @default(cuid())
+  shiftAssignmentId String
+  employeeId        String
+  restaurantId      String
+  checkinTime       DateTime  @default(now())
+  checkoutTime      DateTime?
+  notes             String?
+  latitude          Float?
+  longitude         Float?
+  photoUrl          String?
+  qrPayload         String?
+  createdAt         DateTime  @default(now())
+
+  shiftAssignment ShiftAssignment @relation(fields: [shiftAssignmentId], references: [id])
+  employee        Employee        @relation(fields: [employeeId], references: [id])
+  restaurant      Restaurant      @relation(fields: [restaurantId], references: [id])
+
+  @@index([restaurantId])
+  @@index([employeeId])
+  @@index([restaurantId, checkinTime])
+}
+
+model Anomaly {
+  id                String          @id @default(cuid())
+  shiftAssignmentId String
+  employeeId        String
+  restaurantId      String
+  type              AnomalyType
+  severity          AnomalySeverity @default(MEDIUM)
+  detectedAt        DateTime        @default(now())
+  resolvedAt        DateTime?
+  notes             String?
+  isResolved        Boolean         @default(false)
+
+  shiftAssignment ShiftAssignment @relation(fields: [shiftAssignmentId], references: [id])
+  employee        Employee        @relation(fields: [employeeId], references: [id])
+  restaurant      Restaurant      @relation(fields: [restaurantId], references: [id])
+
+  @@index([restaurantId])
+  @@index([restaurantId, isResolved])
+}
+
+model Invitation {
+  id           String           @id @default(cuid())
+  code         String           @unique
+  restaurantId String
+  role         UserRole         @default(employee)
+  status       InvitationStatus @default(PENDING)
+  invitedBy    String
+  usedBy       String?
+  email        String?
+  expiresAt    DateTime
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  inviter    User       @relation("inviter", fields: [invitedBy], references: [id])
+
+  @@index([code])
+  @@index([restaurantId])
+}
