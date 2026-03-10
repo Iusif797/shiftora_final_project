@@ -1,0 +1,11 @@
+---
+description: Git commit and push rules
+globs: 
+alwaysApply: true
+---
+
+# Git Rules
+
+- NEVER add "made with Cursor", "built with Cursor", "powered by Cursor" or similar branding to commit messages or code
+- Use Conventional Commits format for commit messages
+- One logical change per commit
