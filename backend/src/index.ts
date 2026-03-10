@@ -36,7 +36,12 @@ app.use(
       if (!origin) return origin;
       if (isProduction) {
         const allowedPatterns = [
+          "localhost",
+          "127.0.0.1",
           ".shiftora.app",
+          ".railway.app",
+          ".fly.dev",
+          ".onrender.com",
           ".vibecode.run",
           ".vibecodeapp.com",
         ];
