@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Shiftora",
+    "slug": "vibecode",
+    "scheme": "vibecode",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "splash": {
+      "backgroundColor": "#000000"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.shiftora.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Shiftora uses the camera for shift check-in photo verification and QR code scanning.",
+        "NSLocationWhenInUseUsageDescription": "Shiftora uses your location to verify check-in proximity to the restaurant.",
+        "NSPhotoLibraryUsageDescription": "Shiftora accesses your photo library to upload a profile picture."
+      }
+    },
+    "android": {
+      "edgeToEdgeEnabled": true,
+      "package": "com.shiftora.app",
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
