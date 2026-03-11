@@ -20,6 +20,9 @@ export const auth = betterAuth({
     "http://localhost:*",
     "http://127.0.0.1:*",
     "http://192.168.*:*",
+    "https://*.railway.app",
+    "https://*.fly.dev",
+    "https://*.onrender.com",
     "https://*.dev.vibecode.run",
     "https://*.vibecode.run",
     "https://*.vibecodeapp.com",
@@ -88,13 +91,8 @@ export const auth = betterAuth({
             console.error("[auth] Resend error:", error);
             const msg = String(error.message || "");
             if (msg.includes("own email") || msg.includes("verify a domain")) {
-              if (env.NODE_ENV === "development") {
-                console.log(`[auth] DEV: OTP for ${email} = ${otp}`);
-                return;
-              }
-              throw new Error(
-                "Email sending is limited. Add and verify your domain at resend.com/domains"
-              );
+              console.log(`[auth] OTP for ${email} = ${otp} (check Render logs)`);
+              return;
             }
             throw new Error(error.message || "Failed to send OTP");
           }
