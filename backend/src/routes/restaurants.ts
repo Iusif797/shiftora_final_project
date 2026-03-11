@@ -41,6 +41,15 @@ router.post("/", zValidator("json", createSchema), async (c) => {
 
   const { name, address, phone, timezone } = c.req.valid("json");
 
+  const existing = await prisma.restaurant.findFirst({ where: { ownerId: user.id } });
+  if (existing) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { role: "owner", restaurantId: existing.id },
+    });
+    return c.json({ data: existing });
+  }
+
   const restaurant = await prisma.restaurant.create({
     data: {
       name,

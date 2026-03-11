@@ -99,15 +99,24 @@ export default function Onboarding() {
                     borderRadius: radius.full,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    backgroundColor: complete || active ? colors.brand.primary : colors.bg.surface,
+                    backgroundColor: complete || active ? colors.brand.primary : 'transparent',
                     borderWidth: 1,
                     borderColor: complete || active ? colors.brand.primaryLight : colors.border.default,
                   }}
                 >
                   {complete ? (
                     <Check color="#FFFFFF" size={14} strokeWidth={2.4} />
+                  ) : active ? (
+                    <Text style={{ ...typography.caption, color: '#FFFFFF' }}>{index + 1}</Text>
                   ) : (
-                    <Text style={{ ...typography.caption, color: active ? '#FFFFFF' : colors.text.tertiary }}>{index + 1}</Text>
+                    <View
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: radius.full,
+                        backgroundColor: colors.border.default,
+                      }}
+                    />
                   )}
                 </View>
                 {index < totalSteps - 1 ? (
