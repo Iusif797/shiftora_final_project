@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from 'react';
 import type { RefreshControlProps } from 'react-native';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ImageBackground, Pressable, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { DrawerActions, useNavigation } from '@react-navigation/native';
 import { Menu } from 'lucide-react-native';
@@ -54,6 +54,22 @@ export function DrawerMenuButton() {
     >
       <Menu color={colors.text.primary} size={18} strokeWidth={2.2} />
     </Pressable>
+  );
+}
+
+const heroImage = require('../../assets/onboarding/hero.png');
+
+export function AuthBackground({ children }: AppBackgroundProps) {
+  return (
+    <ImageBackground
+      source={heroImage}
+      style={{ flex: 1 }}
+      resizeMode="cover"
+    >
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)' }}>
+        {children}
+      </View>
+    </ImageBackground>
   );
 }
 

@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { ArrowRight, UserPlus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppBackground, GlassPanel } from '@/components/app-shell';
+import { AuthBackground, GlassPanel } from '@/components/app-shell';
 import { AccentBadge, PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { FormField } from '@/components/form-field';
 import { authClient } from '@/lib/auth/auth-client';
@@ -104,7 +104,7 @@ export default function SignUp() {
   };
 
   return (
-    <AppBackground>
+    <AuthBackground>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView
           contentContainerStyle={{
@@ -276,6 +276,6 @@ export default function SignUp() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </AppBackground>
+    </AuthBackground>
   );
 }

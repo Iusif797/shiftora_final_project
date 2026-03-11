@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useMutation } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { ArrowRight, Building2, Check, ChefHat, Ticket, Users } from 'lucide-react-native';
-import { GlassPanel, AppBackground } from '@/components/app-shell';
+import { AuthBackground, GlassPanel } from '@/components/app-shell';
 import { AccentBadge, PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { FormField } from '@/components/form-field';
 import { api } from '@/lib/api/api';
@@ -306,6 +306,6 @@ export default function Onboarding() {
           </View>
         ) : null}
       </ScrollView>
-    </AppBackground>
+    </AuthBackground>
   );
 }

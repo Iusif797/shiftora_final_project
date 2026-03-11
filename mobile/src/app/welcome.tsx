@@ -6,7 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight } from 'lucide-react-native';
-import { AppBackground } from '@/components/app-shell';
+import { AuthBackground } from '@/components/app-shell';
 import { PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { colors, radius, spacing, typography } from '@/theme';
 
@@ -79,7 +79,7 @@ export default function WelcomeScreen() {
   const imageHeight = Math.min(height * 0.5, 400);
 
   return (
-    <AppBackground>
+    <AuthBackground>
       <ScrollView
         ref={scrollViewRef}
         horizontal
@@ -159,6 +159,6 @@ export default function WelcomeScreen() {
           <SecondaryButton label="Skip to sign in" onPress={handleGetStarted} testID="skip-button" />
         </View>
       </View>
-    </AppBackground>
+    </AuthBackground>
   );
 }
