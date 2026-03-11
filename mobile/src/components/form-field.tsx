@@ -1,4 +1,5 @@
 import { Text, TextInput, View } from 'react-native';
+import type { TextInputProps } from 'react-native';
 import { colors, radius, spacing, typography } from '@/theme';
 
 interface FormFieldProps {
@@ -13,6 +14,11 @@ interface FormFieldProps {
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   keyboardType?: 'default' | 'email-address' | 'numeric';
   autoCorrect?: boolean;
+  autoComplete?: TextInputProps['autoComplete'];
+  textContentType?: TextInputProps['textContentType'];
+  secureTextEntry?: boolean;
+  returnKeyType?: TextInputProps['returnKeyType'];
+  onSubmitEditing?: TextInputProps['onSubmitEditing'];
   testID?: string;
 }
 
@@ -28,6 +34,11 @@ export function FormField({
   autoCapitalize = 'none',
   keyboardType = 'default',
   autoCorrect = false,
+  autoComplete,
+  textContentType,
+  secureTextEntry = false,
+  returnKeyType,
+  onSubmitEditing,
   testID,
 }: FormFieldProps) {
   return (
@@ -55,6 +66,11 @@ export function FormField({
           autoCapitalize={autoCapitalize}
           keyboardType={keyboardType}
           autoCorrect={autoCorrect}
+          autoComplete={autoComplete}
+          textContentType={textContentType}
+          secureTextEntry={secureTextEntry}
+          returnKeyType={returnKeyType}
+          onSubmitEditing={onSubmitEditing}
           testID={testID}
           style={{
             minHeight: 56,

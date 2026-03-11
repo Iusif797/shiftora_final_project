@@ -6,7 +6,6 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   BETTER_AUTH_SECRET: z.string().min(1, "BETTER_AUTH_SECRET is required"),
   BACKEND_URL: z.string().optional().default("http://localhost:3000"),
-  RESEND_API_KEY: z.string().optional(),
 });
 
 function validateEnv() {

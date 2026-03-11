@@ -1,0 +1,15 @@
+services:
+  - type: web
+    runtime: docker
+    name: shiftora-backend
+    rootDir: backend
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: BETTER_AUTH_SECRET
+        sync: false
+      - key: BACKEND_URL
+        sync: false

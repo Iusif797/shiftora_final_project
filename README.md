@@ -11,7 +11,7 @@ Shift management platform for restaurants. Manage employee schedules, track atte
 
 ## Features
 
-- **Email OTP Authentication** — passwordless sign-in via Better Auth
+- **Email & Password Authentication** — secure session-based sign-in via Better Auth
 - **Role-based Access** — owner, manager, employee with scoped permissions
 - **Invitation System** — owners generate invite codes, employees join via code
 - **Shift Management** — create, assign, and auto-generate schedules
@@ -69,7 +69,6 @@ docker run -p 3000:3000 --env-file .env.production shiftora-api
 | API Server | Railway / Fly.io | ~$5/mo |
 | Database | Neon.tech (PostgreSQL) | Free tier |
 | File Storage | Cloudflare R2 | Free tier |
-| Email (OTP) | Resend | Free 100/day |
 
 ### Mobile (EAS Build)
 

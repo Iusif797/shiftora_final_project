@@ -8,6 +8,7 @@ import { WifiOff } from 'lucide-react-native';
 import { useSession } from '@/lib/auth/use-session';
 import { useNetworkStatus } from '@/lib/use-network';
 import { colors, typography, spacing } from '@/theme';
+import type { AppUser } from '@/types/app';
 import '../../global.css';
 
 SplashScreen.preventAutoHideAsync();
@@ -42,6 +43,8 @@ function OfflineBanner() {
 
 function RootLayoutNav() {
   const { data: session, isLoading } = useSession();
+  const user = session?.user as AppUser | undefined;
+  const needsOnboarding = !!user && !user.restaurantId;
 
   if (isLoading) return null;
 
@@ -59,14 +62,16 @@ function RootLayoutNav() {
           animation: 'fade',
         }}
       >
-        <Stack.Protected guard={!!session?.user}>
+        <Stack.Protected guard={!!user && !needsOnboarding}>
           <Stack.Screen name="(app)" />
         </Stack.Protected>
-        <Stack.Protected guard={!session?.user}>
+        <Stack.Protected guard={needsOnboarding}>
+          <Stack.Screen name="onboarding" />
+        </Stack.Protected>
+        <Stack.Protected guard={!user}>
           <Stack.Screen name="welcome" />
           <Stack.Screen name="sign-in" />
-          <Stack.Screen name="verify-otp" />
-          <Stack.Screen name="onboarding" />
+          <Stack.Screen name="sign-up" />
         </Stack.Protected>
       </Stack>
     </View>
