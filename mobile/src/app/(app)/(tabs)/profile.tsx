@@ -3,8 +3,9 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { useMutation } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
-import { Camera, Edit2, Check } from 'lucide-react-native';
-import { AppBackground, ScreenHeader, DrawerMenuButton } from '@/components/app-shell';
+import { router } from 'expo-router';
+import { Camera, Edit2, Check, Settings } from 'lucide-react-native';
+import { AppBackground, ScreenHeader } from '@/components/app-shell';
 import { PrimaryButton, SecondaryButton, AccentBadge } from '@/components/buttons';
 import { SurfaceCard } from '@/components/cards';
 import { FormField } from '@/components/form-field';
@@ -60,7 +61,7 @@ export default function ProfileScreen() {
   return (
     <AppBackground>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        <ScreenHeader title="Profile" leftSlot={<DrawerMenuButton />} />
+        <ScreenHeader title="Profile" />
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: 20, paddingTop: spacing.md, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
@@ -158,8 +159,9 @@ export default function ProfileScreen() {
                   <Text style={{ ...typography.body, color: colors.text.secondary }}>{user?.email}</Text>
                 </View>
                 
-                <View style={{ marginTop: spacing.sm }}>
+                <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
                   <SecondaryButton label="Edit Profile" icon={Edit2} onPress={() => setIsEditing(true)} />
+                  <SecondaryButton label="Restaurant settings" icon={Settings} onPress={() => router.push('/(app)/settings')} />
                 </View>
               </View>
             )}

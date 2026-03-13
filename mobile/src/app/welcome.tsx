@@ -69,7 +69,7 @@ export default function WelcomeScreen() {
     setCurrentSlide(nextSlide);
   };
 
-  const handleMomentumEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+  const updateSlideFromScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const slideIndex = Math.round(event.nativeEvent.contentOffset.x / width);
     setCurrentSlide(slideIndex);
   };
@@ -85,7 +85,8 @@ export default function WelcomeScreen() {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={handleMomentumEnd}
+        onMomentumScrollEnd={updateSlideFromScroll}
+        onScrollEndDrag={updateSlideFromScroll}
         style={{ flex: 1 }}
       >
         {slides.map((slide) => (

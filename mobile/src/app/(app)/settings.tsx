@@ -1,8 +1,9 @@
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { Building2, LogOut, Shield } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { Building2, ChevronLeft, LogOut, Shield } from 'lucide-react-native';
 import { ScreenScroll } from '@/components/app-shell';
 import { AccentBadge, PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { EmptyState, HighlightCard, SurfaceCard } from '@/components/cards';
@@ -43,7 +44,15 @@ export default function Settings() {
   };
 
   return (
-    <ScreenScroll title="Settings" subtitle="Your profile, restaurant, and workspace security">
+    <ScreenScroll
+      title="Settings"
+      subtitle="Your profile, restaurant, and workspace security"
+      leftSlot={
+        <Pressable onPress={() => router.back()} hitSlop={12} style={{ padding: 4 }}>
+          <ChevronLeft color={colors.text.primary} size={24} strokeWidth={2} />
+        </Pressable>
+      }
+    >
       <View testID="settings-screen">
         <HighlightCard>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>

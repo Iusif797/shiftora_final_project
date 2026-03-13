@@ -80,7 +80,7 @@ export default function Onboarding() {
   const totalSteps = userPath === 'employee' ? 3 : 2;
 
   return (
-    <AppBackground>
+    <AuthBackground>
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, paddingHorizontal: spacing.xxl, paddingTop: 72, paddingBottom: spacing.xxxxl }}
         showsVerticalScrollIndicator={false}

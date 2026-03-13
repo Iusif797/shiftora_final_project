@@ -16,7 +16,7 @@ import {
   Users,
   Plus,
 } from 'lucide-react-native';
-import { AppBackground, DrawerMenuButton } from '@/components/app-shell';
+import { AppBackground } from '@/components/app-shell';
 import { AccentBadge, PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { EmptyState, HighlightCard, MetricCard, SurfaceCard } from '@/components/cards';
 import { api } from '@/lib/api/api';
@@ -335,7 +335,6 @@ export default function Dashboard() {
           testID="dashboard-screen"
         >
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md }}>
-            <DrawerMenuButton />
             <View style={{ flex: 1 }}>
               <Text style={{ ...typography.bodySmall, color: colors.text.tertiary }}>{getGreeting()}</Text>
               <Text style={{ ...typography.h1, color: colors.text.primary, marginTop: 4 }}>

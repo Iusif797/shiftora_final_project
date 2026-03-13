@@ -50,6 +50,7 @@ function RootLayoutNav() {
 
   return (
     <View
+      className="dark"
       style={{ flex: 1, backgroundColor: '#070711' }}
       onLayout={() => SplashScreen.hideAsync()}
     >

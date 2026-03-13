@@ -1,11 +1,9 @@
 import type { ReactElement, ReactNode } from 'react';
 import type { RefreshControlProps } from 'react-native';
-import { ImageBackground, Pressable, ScrollView, Text, View } from 'react-native';
+import { ImageBackground, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { DrawerActions, useNavigation } from '@react-navigation/native';
-import { Menu } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, gradients, radius, shadows, spacing, typography } from '@/theme';
+import { colors, gradients, shadows, spacing, typography } from '@/theme';
 
 interface AppBackgroundProps {
   children: ReactNode;
@@ -26,35 +24,6 @@ interface ScreenScrollProps {
   rightSlot?: ReactNode;
   testID?: string;
   refreshControl?: ReactElement<RefreshControlProps>;
-}
-
-export function DrawerMenuButton() {
-  const navigation = useNavigation();
-
-  return (
-    <Pressable
-      onPress={() => {
-        try {
-          navigation.dispatch(DrawerActions.toggleDrawer());
-        } catch {
-          // drawer not available in this context
-        }
-      }}
-      testID="drawer-menu-button"
-      style={{
-        width: 44,
-        height: 44,
-        borderRadius: radius.lg,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: colors.bg.surface,
-        borderWidth: 1,
-        borderColor: colors.border.default,
-      }}
-    >
-      <Menu color={colors.text.primary} size={18} strokeWidth={2.2} />
-    </Pressable>
-  );
 }
 
 const heroImage = require('../../assets/onboarding/hero.png');
@@ -143,7 +112,7 @@ export function ScreenScroll({ children, title, subtitle, leftSlot, rightSlot, t
   return (
     <AppBackground>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        <ScreenHeader title={title} subtitle={subtitle} leftSlot={leftSlot ?? <DrawerMenuButton />} rightSlot={rightSlot} />
+        <ScreenHeader title={title} subtitle={subtitle} leftSlot={leftSlot} rightSlot={rightSlot} />
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: 20, paddingTop: spacing.md, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
