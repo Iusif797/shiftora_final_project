@@ -7,6 +7,7 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(1, "BETTER_AUTH_SECRET is required"),
   BACKEND_URL: z.string().optional().default("http://localhost:3000"),
   ALLOWED_ORIGIN: z.string().optional(),
+  SENTRY_DSN: z.string().optional(),
 });
 
 function validateEnv() {

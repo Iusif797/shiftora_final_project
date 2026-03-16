@@ -200,7 +200,9 @@ router.delete("/:id", async (c) => {
         token,
         "Shift cancelled",
         `${existing.title} has been cancelled`
-      ).catch(() => {});
+      ).catch((err: unknown) => {
+        console.error("[Push] cancel notification failed:", err);
+      });
     }
   }
 
@@ -245,7 +247,9 @@ router.post("/:id/assign", zValidator("json", assignSchema), async (c) => {
       pushToken,
       "New shift assigned",
       `${assignment.shift.title} · ${assignment.shift.startTime.toLocaleString()}`
-    ).catch(() => {});
+    ).catch((err: unknown) => {
+      console.error("[Push] assign notification failed:", err);
+    });
   }
 
   return c.json({ data: assignment });

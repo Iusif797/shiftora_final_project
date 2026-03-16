@@ -174,7 +174,8 @@
   "private": true,
   "overrides": {
     "react-native-css-interop": "0.1.22",
-    "react-native-reanimated": "3.17.4"
+    "react-native-reanimated": "3.17.4",
+    "expo-network": "~7.1.5"
   },
   "patchedDependencies": {
     "react-native@0.79.6": "patches/react-native@0.79.6.patch",
