@@ -49,6 +49,8 @@ app.use(
           ".vibecodeapp.com",
         ];
         if (allowedPatterns.some((p) => origin.includes(p))) return origin;
+        // Allow localhost for local dev testing against prod backend
+        if (origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) return origin;
         return undefined;
       }
       return origin;
