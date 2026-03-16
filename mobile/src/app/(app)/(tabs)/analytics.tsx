@@ -1,9 +1,10 @@
+import { memo, useCallback, useMemo } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Activity, AlertTriangle, Banknote, Sparkles, TrendingUp, Users } from 'lucide-react-native';
 import { ScreenScroll } from '@/components/app-shell';
 import { AccentBadge } from '@/components/buttons';
-import { EmptyState, HighlightCard, MetricCard, SurfaceCard } from '@/components/cards';
+import { EmptyState, ErrorState, HighlightCard, MetricCard, SurfaceCard } from '@/components/cards';
 import { api } from '@/lib/api/api';
 import { anomalyAppearance, colors, spacing, typography } from '@/theme';
 import type { AnalyticsOverview } from '@/types/app';
@@ -62,8 +63,8 @@ const staffingAppearance = {
   critical: { color: colors.danger.base, tint: colors.danger.muted },
 } as const;
 
-export default function Analytics() {
-  const { data: overview, isLoading } = useQuery({
+function AnalyticsScreen() {
+  const { data: overview, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['analytics-overview'],
     queryFn: () => api.get<AnalyticsOverview>('/api/analytics/overview'),
   });
@@ -84,7 +85,20 @@ export default function Analytics() {
     queryFn: () => api.get<{ slots: WorkloadSlot[] }>('/api/analytics/workload-forecast'),
   });
 
-  const health = staffingAppearance[insights?.staffingHealth ?? 'optimal'];
+  const health = useMemo(
+    () => staffingAppearance[insights?.staffingHealth ?? 'optimal'],
+    [insights?.staffingHealth]
+  );
+  const handleRetry = useCallback(() => refetch(), [refetch]);
+  const shortageSlots = useMemo(
+    () => workloadForecast?.slots?.filter((s) => s.shortage > 0).slice(0, 5) ?? [],
+    [workloadForecast?.slots]
+  );
+  const sortedEmployees = useMemo(
+    () =>
+      employees?.slice().sort((a, b) => (a.punctualityScore ?? 0) - (b.punctualityScore ?? 0)) ?? [],
+    [employees]
+  );
 
   return (
     <ScreenScroll title="Analytics" subtitle="AI-powered insights and performance" testID="analytics-scroll">
@@ -97,7 +111,17 @@ export default function Analytics() {
           />
         ) : null}
 
-        {insights ? (
+        {isError ? (
+          <ErrorState
+            message={error instanceof Error ? error.message : 'Не удалось загрузить аналитику'}
+            onRetry={handleRetry}
+            testID="analytics-error"
+          />
+        ) : null}
+
+        {!isError && !isLoading ? (
+          <>
+            {insights ? (
           <HighlightCard>
             <AccentBadge label="Staffing health" color={health.color} tint={health.tint} />
             <Text style={{ ...typography.h2, color: colors.text.primary, marginTop: spacing.lg, textTransform: 'capitalize' }}>
@@ -143,13 +167,10 @@ export default function Analytics() {
           </View>
         ) : null}
 
-        {workloadForecast?.slots?.filter((s) => s.shortage > 0).length ? (
+        {shortageSlots.length ? (
           <View style={{ marginTop: spacing.xl, gap: spacing.md }}>
             <Text style={{ ...typography.h3, color: colors.text.primary }}>Staffing forecast</Text>
-            {workloadForecast.slots
-              .filter((s) => s.shortage > 0)
-              .slice(0, 5)
-              .map((slot, i) => (
+            {shortageSlots.map((slot, i) => (
                 <SurfaceCard key={i}>
                   <Text style={{ ...typography.h4, color: colors.text.primary }}>
                     {slot.day} {slot.start}-{slot.end}
@@ -207,13 +228,10 @@ export default function Analytics() {
           </View>
         ) : null}
 
-        {employees?.length ? (
+        {sortedEmployees.length ? (
           <View style={{ marginTop: spacing.xl, gap: spacing.md }}>
             <Text style={{ ...typography.h3, color: colors.text.primary }}>Punctuality</Text>
-            {employees
-              .slice()
-              .sort((a, b) => (a.punctualityScore ?? 0) - (b.punctualityScore ?? 0))
-              .map((employee) => (
+            {sortedEmployees.map((employee) => (
                 <SurfaceCard key={employee.id}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <Text style={{ ...typography.h4, color: colors.text.primary }}>{employee.user.name}</Text>
@@ -237,7 +255,7 @@ export default function Analytics() {
                 </SurfaceCard>
               ))}
           </View>
-        ) : !isLoading ? (
+        ) : (
           <View style={{ marginTop: spacing.xl }}>
             <EmptyState
               icon={Users}
@@ -246,8 +264,12 @@ export default function Analytics() {
               color={colors.brand.primary}
             />
           </View>
+        )}
+          </>
         ) : null}
       </View>
     </ScreenScroll>
   );
 }
+
+export default memo(AnalyticsScreen);

@@ -19,7 +19,7 @@ export default function Onboarding() {
   const [userPath, setUserPath] = useState<UserPath | null>(null);
   const [restaurantName, setRestaurantName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('employee');
+  const [, setSelectedRole] = useState<UserRole>('employee');
   const [error, setError] = useState<string | null>(null);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [verifiedInvite, setVerifiedInvite] = useState<{ role: UserRole; restaurant: { id: string; name: string } } | null>(null);
@@ -76,7 +76,6 @@ export default function Onboarding() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
-  const steps = ['path', userPath === 'owner' ? 'owner-setup' : 'employee-code', ...(userPath === 'employee' ? ['employee-role'] : [])] as const;
   const totalSteps = userPath === 'employee' ? 3 : 2;
 
   return (

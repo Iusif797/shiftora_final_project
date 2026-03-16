@@ -1,6 +1,7 @@
 import type { ComponentType, ReactNode } from 'react';
 import { Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { PrimaryButton } from '@/components/buttons';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
 
 type IconComponent = ComponentType<{ color: string; size: number; strokeWidth: number }>;
@@ -95,6 +96,23 @@ export function MetricCard({ label, value, icon: Icon, color, subtitle }: Metric
         <Text style={{ ...typography.caption, color, marginTop: spacing.xs }}>{subtitle}</Text>
       ) : null}
     </View>
+  );
+}
+
+interface ErrorStateProps {
+  message: string;
+  onRetry: () => void;
+  testID?: string;
+}
+
+export function ErrorState({ message, onRetry, testID }: ErrorStateProps) {
+  return (
+    <SurfaceCard>
+      <View style={{ alignItems: 'center', gap: spacing.lg }} testID={testID}>
+        <Text style={{ ...typography.body, color: colors.danger.base, textAlign: 'center' }}>{message}</Text>
+        <PrimaryButton label="Повторить" onPress={onRetry} testID="error-retry-button" />
+      </View>
+    </SurfaceCard>
   );
 }
 

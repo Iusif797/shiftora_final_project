@@ -7,7 +7,7 @@ import { router } from 'expo-router';
 import { Camera, Edit2, Check, Settings } from 'lucide-react-native';
 import { AppBackground, ScreenHeader } from '@/components/app-shell';
 import { PrimaryButton, SecondaryButton, AccentBadge } from '@/components/buttons';
-import { SurfaceCard } from '@/components/cards';
+import { ErrorState, SurfaceCard } from '@/components/cards';
 import { FormField } from '@/components/form-field';
 import { api } from '@/lib/api/api';
 import { useSession, useInvalidateSession } from '@/lib/auth/use-session';
@@ -19,7 +19,7 @@ import type { AppUser } from '@/types/app';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ProfileScreen() {
-  const { data: session } = useSession();
+  const { data: session, isError: sessionError, error: sessionErrorObj, refetch: refetchSession } = useSession();
   const invalidateSession = useInvalidateSession();
   const user = session?.user as AppUser | undefined;
   const role = roleAppearance[user?.role ?? 'employee'];
@@ -57,6 +57,23 @@ export default function ProfileScreen() {
   const handleSave = () => {
     updateProfileMutation.mutate({ name });
   };
+
+  if (sessionError && !user) {
+    return (
+      <AppBackground>
+        <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+          <ScreenHeader title="Profile" />
+          <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: spacing.xl }}>
+            <ErrorState
+              message={sessionErrorObj instanceof Error ? sessionErrorObj.message : 'Не удалось загрузить профиль'}
+              onRetry={() => refetchSession()}
+              testID="profile-error"
+            />
+          </ScrollView>
+        </SafeAreaView>
+      </AppBackground>
+    );
+  }
 
   return (
     <AppBackground>

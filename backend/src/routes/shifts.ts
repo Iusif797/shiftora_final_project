@@ -1,8 +1,38 @@
 import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
 import { prisma } from "../prisma";
-import { type AuthContext, getAuthUser } from "../middleware/auth";
+import { generateShifts } from "../services/shift-generator";
+import { sendPushNotification } from "../services/notifications";
+import { type AuthContext, assertRestaurantAccess, getAuthUser } from "../middleware/auth";
 
 const router = new Hono<AuthContext>();
+
+const createShiftSchema = z.object({
+  title: z.string().min(1, "title required"),
+  startTime: z.string().min(1, "startTime required"),
+  endTime: z.string().min(1, "endTime required"),
+  notes: z.string().optional(),
+  maxEmployees: z.coerce.number().optional(),
+});
+
+const updateShiftSchema = z.object({
+  title: z.string().min(1).optional(),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
+  status: z.enum(["SCHEDULED", "ACTIVE", "COMPLETED", "CANCELLED"]).optional(),
+  notes: z.string().optional(),
+  maxEmployees: z.coerce.number().optional(),
+});
+
+const assignSchema = z.object({
+  employeeId: z.string().min(1, "employeeId required"),
+});
+
+const generateSchema = z.object({
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
 
 router.get("/upcoming", async (c) => {
   const user = getAuthUser(c);
@@ -67,7 +97,7 @@ router.get("/", async (c) => {
   return c.json({ data: shifts });
 });
 
-router.post("/generate", async (c) => {
+router.post("/generate", zValidator("json", generateSchema), async (c) => {
   const user = getAuthUser(c);
   if (!user) return c.json({ error: { message: "Unauthorized" } }, 401);
   if (!["manager", "owner"].includes(user.role)) {
@@ -75,130 +105,21 @@ router.post("/generate", async (c) => {
   }
   if (!user.restaurantId) return c.json({ error: { message: "No restaurant" } }, 400);
 
-  const body = await c.req.json().catch(() => ({}));
-  const startDate = body.startDate
-    ? new Date(body.startDate)
-    : (() => {
-        const d = new Date();
-        d.setDate(d.getDate() + ((7 - d.getDay()) % 7) || 7);
-        d.setHours(0, 0, 0, 0);
-        return d;
-      })();
-  const endDate = body.endDate ? new Date(body.endDate) : new Date(startDate.getTime() + 6 * 24 * 60 * 60 * 1000);
+  const body = c.req.valid("json");
+  const startDate = body.startDate ? new Date(body.startDate) : undefined;
+  const endDate = body.endDate ? new Date(body.endDate) : undefined;
 
-  const [employees, existingShifts, historicalCheckins] = await Promise.all([
-    prisma.employee.findMany({
-      where: { restaurantId: user.restaurantId, isActive: true },
-      include: { user: true },
-    }),
-    prisma.shift.findMany({
-      where: {
-        restaurantId: user.restaurantId,
-        startTime: { gte: startDate, lte: endDate },
-        status: { in: ["SCHEDULED", "ACTIVE"] },
-      },
-      include: { assignments: true },
-    }),
-    prisma.checkin.findMany({
-      where: {
-        restaurantId: user.restaurantId,
-        checkinTime: { gte: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000) },
-        checkoutTime: { not: null },
-      },
-      include: { shiftAssignment: { include: { shift: true } } },
-    }),
-  ]);
-
-  const slotDurationHours = 3;
-  const countByDateSlot: Record<string, number> = {};
-  for (const ck of historicalCheckins) {
-    const start = new Date(ck.checkinTime);
-    const dayOfWeek = start.getDay();
-    const hour = Math.floor(start.getHours() / slotDurationHours) * slotDurationHours;
-    const dateStr = start.toISOString().slice(0, 10);
-    const slotKey = `${dayOfWeek}-${hour}`;
-    const key = `${dateStr}|${slotKey}`;
-    countByDateSlot[key] = (countByDateSlot[key] ?? 0) + 1;
-  }
-
-  const bySlot: Record<string, number[]> = {};
-  for (const [key, count] of Object.entries(countByDateSlot)) {
-    const slotKey = key.split("|")[1]!;
-    if (!bySlot[slotKey]) bySlot[slotKey] = [];
-    bySlot[slotKey].push(count);
-  }
-
-  const baselineBySlot: Record<string, number> = {};
-  for (const [key, arr] of Object.entries(bySlot)) {
-    const avg = arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
-    baselineBySlot[key] = Math.max(1, Math.ceil(avg * 1.1));
-  }
-
-  const existingBySlot: Record<string, number> = {};
-  for (const shift of existingShifts) {
-    const start = new Date(shift.startTime);
-    const dayOfWeek = start.getDay();
-    const hour = Math.floor(start.getHours() / slotDurationHours) * slotDurationHours;
-    const dateStr = start.toISOString().slice(0, 10);
-    const slotKey = `${dayOfWeek}-${hour}`;
-    const key = `${dateStr}|${slotKey}`;
-    existingBySlot[key] = (existingBySlot[key] ?? 0) + shift.assignments.length;
-  }
-
-  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const created: { shift: unknown; assignments: unknown[] }[] = [];
-  const employeeUsage: Record<string, number> = {};
-
-  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-    const dayOfWeek = d.getDay();
-    const dateStr = d.toISOString().slice(0, 10);
-    for (let h = 9; h < 22; h += slotDurationHours) {
-      const slotKey = `${dayOfWeek}-${h}`;
-      const needed = baselineBySlot[slotKey] ?? 2;
-      const key = `${dateStr}|${slotKey}`;
-      const existing = existingBySlot[key] ?? 0;
-      const shortage = Math.max(0, needed - existing);
-      if (shortage === 0) continue;
-
-      const slotStart = new Date(d);
-      slotStart.setHours(h, 0, 0, 0);
-      const slotEnd = new Date(slotStart);
-      slotEnd.setHours(h + slotDurationHours, 0, 0, 0);
-
-      const shift = await prisma.shift.create({
-        data: {
-          restaurantId: user.restaurantId,
-          title: `${dayNames[dayOfWeek]} ${h}:00`,
-          startTime: slotStart,
-          endTime: slotEnd,
-          status: "SCHEDULED",
-          createdById: user.id,
-        },
-      });
-
-      const sorted = [...employees].sort(
-        (a, b) => (employeeUsage[a.id] ?? 0) - (employeeUsage[b.id] ?? 0)
-      );
-      const toAssign = sorted.slice(0, shortage);
-      const assignments: unknown[] = [];
-
-      for (const emp of toAssign) {
-        const a = await prisma.shiftAssignment.create({
-          data: { shiftId: shift.id, employeeId: emp.id },
-          include: { employee: { include: { user: true } } },
-        });
-        assignments.push(a);
-        employeeUsage[emp.id] = (employeeUsage[emp.id] ?? 0) + 1;
-      }
-
-      created.push({ shift, assignments });
-    }
-  }
+  const { created } = await generateShifts({
+    restaurantId: user.restaurantId,
+    userId: user.id,
+    startDate,
+    endDate,
+  });
 
   return c.json({ data: { created: created.length, shifts: created } });
 });
 
-router.post("/", async (c) => {
+router.post("/", zValidator("json", createShiftSchema), async (c) => {
   const user = getAuthUser(c);
   if (!user) return c.json({ error: { message: "Unauthorized" } }, 401);
   if (!["manager", "owner"].includes(user.role)) {
@@ -206,12 +127,7 @@ router.post("/", async (c) => {
   }
   if (!user.restaurantId) return c.json({ error: { message: "No restaurant" } }, 400);
 
-  const body = await c.req.json();
-  const { title, startTime, endTime, notes, maxEmployees } = body;
-
-  if (!title || !startTime || !endTime) {
-    return c.json({ error: { message: "title, startTime, endTime are required" } }, 400);
-  }
+  const { title, startTime, endTime, notes, maxEmployees } = c.req.valid("json");
 
   const shift = await prisma.shift.create({
     data: {
@@ -228,7 +144,7 @@ router.post("/", async (c) => {
   return c.json({ data: shift });
 });
 
-router.put("/:id", async (c) => {
+router.put("/:id", zValidator("json", updateShiftSchema), async (c) => {
   const user = getAuthUser(c);
   if (!user) return c.json({ error: { message: "Unauthorized" } }, 401);
   if (!["manager", "owner"].includes(user.role)) {
@@ -239,11 +155,9 @@ router.put("/:id", async (c) => {
 
   const existing = await prisma.shift.findUnique({ where: { id } });
   if (!existing) return c.json({ error: { message: "Not found" } }, 404);
-  if (existing.restaurantId !== user.restaurantId) {
-    return c.json({ error: { message: "Forbidden" } }, 403);
-  }
+  assertRestaurantAccess(user, existing.restaurantId);
 
-  const body = await c.req.json();
+  const body = c.req.valid("json");
   const { title, startTime, endTime, status, notes, maxEmployees } = body;
 
   const shift = await prisma.shift.update({
@@ -270,18 +184,30 @@ router.delete("/:id", async (c) => {
 
   const id = c.req.param("id");
 
-  const existing = await prisma.shift.findUnique({ where: { id } });
+  const existing = await prisma.shift.findUnique({
+    where: { id },
+    include: { assignments: { include: { employee: { include: { user: { select: { pushToken: true } } } } } } },
+  });
   if (!existing) return c.json({ error: { message: "Not found" } }, 404);
-  if (existing.restaurantId !== user.restaurantId) {
-    return c.json({ error: { message: "Forbidden" } }, 403);
-  }
+  assertRestaurantAccess(user, existing.restaurantId);
 
   await prisma.shift.update({ where: { id }, data: { status: "CANCELLED" } });
+
+  for (const a of existing.assignments) {
+    const token = a.employee?.user?.pushToken;
+    if (token) {
+      sendPushNotification(
+        token,
+        "Shift cancelled",
+        `${existing.title} has been cancelled`
+      ).catch(() => {});
+    }
+  }
 
   return c.json({ data: { success: true } });
 });
 
-router.post("/:id/assign", async (c) => {
+router.post("/:id/assign", zValidator("json", assignSchema), async (c) => {
   const user = getAuthUser(c);
   if (!user) return c.json({ error: { message: "Unauthorized" } }, 401);
   if (!["manager", "owner"].includes(user.role)) {
@@ -292,14 +218,9 @@ router.post("/:id/assign", async (c) => {
 
   const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
   if (!shift) return c.json({ error: { message: "Shift not found" } }, 404);
-  if (shift.restaurantId !== user.restaurantId) {
-    return c.json({ error: { message: "Forbidden" } }, 403);
-  }
+  assertRestaurantAccess(user, shift.restaurantId);
 
-  const body = await c.req.json();
-  const { employeeId } = body;
-
-  if (!employeeId) return c.json({ error: { message: "employeeId required" } }, 400);
+  const { employeeId } = c.req.valid("json");
 
   const existing = await prisma.shiftAssignment.findFirst({
     where: { shiftId, employeeId },
@@ -313,6 +234,19 @@ router.post("/:id/assign", async (c) => {
     data: { shiftId, employeeId },
     include: { employee: { include: { user: true } }, shift: true },
   });
+
+  const emp = await prisma.employee.findUnique({
+    where: { id: assignment.employeeId },
+    include: { user: { select: { pushToken: true } } },
+  });
+  const pushToken = emp?.user?.pushToken;
+  if (pushToken && assignment.shift) {
+    sendPushNotification(
+      pushToken,
+      "New shift assigned",
+      `${assignment.shift.title} · ${assignment.shift.startTime.toLocaleString()}`
+    ).catch(() => {});
+  }
 
   return c.json({ data: assignment });
 });

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { prisma } from "../prisma";
-import { type AuthContext, getAuthUser } from "../middleware/auth";
+import { type AuthContext, assertRestaurantAccess, getAuthUser } from "../middleware/auth";
 
 const router = new Hono<AuthContext>();
 
@@ -153,9 +153,7 @@ router.delete("/:id", async (c) => {
 
   const invitation = await prisma.invitation.findUnique({ where: { id } });
   if (!invitation) return c.json({ error: { message: "Not found" } }, 404);
-  if (invitation.restaurantId !== user.restaurantId) {
-    return c.json({ error: { message: "Forbidden" } }, 403);
-  }
+  assertRestaurantAccess(user, invitation.restaurantId);
 
   await prisma.invitation.update({
     where: { id },

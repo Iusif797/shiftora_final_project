@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
@@ -7,9 +7,10 @@ import { Camera, Clock3, LogIn, LogOut } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { ScreenScroll } from '@/components/app-shell';
 import { AccentBadge, PrimaryButton, SecondaryButton } from '@/components/buttons';
-import { EmptyState, HighlightCard, SurfaceCard } from '@/components/cards';
+import { EmptyState, ErrorState, HighlightCard, SurfaceCard } from '@/components/cards';
 import { api } from '@/lib/api/api';
 import { getLocationForCheckin } from '@/lib/checkin';
+import { showAlert, showError, showSuccess } from '@/lib/toast';
 import { uploadFile } from '@/lib/upload';
 import { formatDate, formatTime } from '@/lib/formatters';
 import { colors, spacing, typography } from '@/theme';
@@ -18,13 +19,13 @@ import type { Checkin, ShiftAssignment } from '@/types/app';
 export default function Attendance() {
   const queryClient = useQueryClient();
   const [photoCheckinAssignmentId, setPhotoCheckinAssignmentId] = useState<string | null>(null);
-  const { data: activeCheckin, isLoading: loadingActive, refetch: refetchActive } = useQuery({
+  const { data: activeCheckin, isLoading: loadingActive, isError: errorActive, error: errorActiveObj, refetch: refetchActive } = useQuery({
     queryKey: ['active-checkin'],
     queryFn: () => api.get<Checkin | null>('/api/checkins/active'),
   });
-  const { data: history, isLoading: loadingHistory, refetch: refetchHistory } = useQuery({
+  const { data: history, isLoading: loadingHistory, isError: errorHistory, error: errorHistoryObj, refetch: refetchHistory } = useQuery({
     queryKey: ['checkin-history'],
-    queryFn: () => api.get<Checkin[]>('/api/checkins/history'),
+    queryFn: () => api.get<{ items: Checkin[] }>('/api/checkins/history?limit=20'),
   });
   const { data: upcoming } = useQuery({
     queryKey: ['upcoming-shifts'],
@@ -47,10 +48,15 @@ export default function Attendance() {
       performCheckin(shiftAssignmentId, { photoUrl, qrPayload }),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showSuccess('Clocked in', 'Your shift has started');
       setPhotoCheckinAssignmentId(null);
       refetchActive();
       refetchHistory();
       queryClient.invalidateQueries({ queryKey: ['upcoming-shifts'] });
+    },
+    onError: (err: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      showError('Check-in failed', err.message);
     },
   });
 
@@ -58,7 +64,7 @@ export default function Attendance() {
     if (!nextShift?.shift) return;
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Camera access', 'Camera permission is required for photo check-in.');
+      showAlert('Camera access', 'Camera permission is required for photo check-in.');
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -77,7 +83,7 @@ export default function Attendance() {
       checkinMutation.mutate({ shiftAssignmentId: nextShift.id, photoUrl: asset.url });
     } catch {
       setPhotoCheckinAssignmentId(null);
-      Alert.alert('Upload failed', 'Could not upload photo. Try again.');
+      showAlert('Upload failed', 'Could not upload photo. Try again.');
     }
   };
 
@@ -85,8 +91,13 @@ export default function Attendance() {
     mutationFn: (checkinId: string) => api.post<Checkin>('/api/checkins/checkout', { checkinId }),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showSuccess('Clocked out', 'Your shift has ended');
       refetchActive();
       refetchHistory();
+    },
+    onError: (err: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      showError('Checkout failed', err.message);
     },
   });
 
@@ -95,13 +106,30 @@ export default function Attendance() {
     ? Math.abs(new Date(nextShift.shift.startTime).getTime() - Date.now()) <= 60 * 60 * 1000
     : false;
 
+  const onRetry = () => {
+    refetchActive();
+    refetchHistory();
+  };
+
   return (
     <ScreenScroll title="Attendance" subtitle="Check in, check out, and review shift history" testID="attendance-screen">
       {loadingActive || loadingHistory ? (
         <ActivityIndicator color={colors.brand.primary} style={{ marginTop: spacing.xxxl }} />
       ) : null}
 
-      {activeCheckin ? (
+      {(errorActive || errorHistory) && !activeCheckin && !history?.items?.length ? (
+        <ErrorState
+          message={
+            errorActiveObj instanceof Error
+              ? errorActiveObj.message
+              : errorHistoryObj instanceof Error
+                ? errorHistoryObj.message
+                : 'Не удалось загрузить данные'
+          }
+          onRetry={onRetry}
+          testID="attendance-error"
+        />
+      ) : activeCheckin ? (
         <HighlightCard>
           <AccentBadge label="Checked in" color={colors.success.base} tint={colors.success.muted} />
           <Text style={{ ...typography.h2, color: colors.text.primary, marginTop: spacing.lg }}>
@@ -133,20 +161,21 @@ export default function Attendance() {
             <PrimaryButton
               label="Start shift"
               onPress={() => checkinMutation.mutate({ shiftAssignmentId: nextShift.id })}
-              loading={checkinMutation.isPending && !photoCheckinAssignmentId}
+              loading={Boolean(checkinMutation.isPending && !photoCheckinAssignmentId)}
               icon={LogIn}
               testID="attendance-checkin-button"
             />
             <SecondaryButton
               label="Check in with photo"
               onPress={handlePhotoCheckin}
-              loading={checkinMutation.isPending && photoCheckinAssignmentId === nextShift.id}
+              disabled={checkinMutation.isPending}
               icon={Camera}
               testID="attendance-photo-checkin-button"
             />
             <SecondaryButton
               label="Scan QR"
               onPress={() => router.push('/attendance/scan-qr')}
+              disabled={checkinMutation.isPending}
               testID="attendance-scan-qr-button"
             />
           </View>
@@ -160,9 +189,10 @@ export default function Attendance() {
         />
       )}
 
+      {!((errorActive || errorHistory) && !activeCheckin && !history?.items?.length) ? (
       <View style={{ marginTop: spacing.xl, gap: spacing.md }}>
-        {history?.length ? (
-          history.slice(0, 10).map((entry) => (
+        {history?.items?.length ? (
+          history.items.slice(0, 10).map((entry) => (
             <SurfaceCard key={entry.id}>
               <Text style={{ ...typography.h4, color: colors.text.primary }}>
                 {entry.shiftAssignment?.shift?.title ?? 'Recorded shift'}
@@ -182,6 +212,7 @@ export default function Attendance() {
           />
         ) : null}
       </View>
+      ) : null}
     </ScreenScroll>
   );
 }

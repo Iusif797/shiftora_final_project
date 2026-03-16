@@ -12,6 +12,7 @@ interface ButtonProps {
   disabled?: boolean;
   icon?: IconComponent;
   testID?: string;
+  accessibilityLabel?: string;
 }
 
 interface BadgeProps {
@@ -20,9 +21,16 @@ interface BadgeProps {
   tint: string;
 }
 
-export function PrimaryButton({ label, onPress, loading = false, disabled = false, icon: Icon, testID }: ButtonProps) {
+export function PrimaryButton({ label, onPress, loading = false, disabled = false, icon: Icon, testID, accessibilityLabel }: ButtonProps) {
   return (
-    <Pressable onPress={onPress} disabled={disabled || loading} testID={testID}>
+    <Pressable
+      onPress={onPress}
+      disabled={disabled || loading}
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
+    >
       {({ pressed }) => (
         <LinearGradient
           colors={pressed ? ['#735CFF', '#5842D6'] : colors.brand.gradient}
@@ -48,9 +56,16 @@ export function PrimaryButton({ label, onPress, loading = false, disabled = fals
   );
 }
 
-export function SecondaryButton({ label, onPress, disabled = false, icon: Icon, testID }: ButtonProps) {
+export function SecondaryButton({ label, onPress, disabled = false, icon: Icon, testID, accessibilityLabel }: ButtonProps) {
   return (
-    <Pressable onPress={onPress} disabled={disabled} testID={testID}>
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled }}
+    >
       {({ pressed }) => (
         <View
           style={{
@@ -77,6 +92,8 @@ export function SecondaryButton({ label, onPress, disabled = false, icon: Icon, 
 export function AccentBadge({ label, color, tint }: BadgeProps) {
   return (
     <View
+      accessibilityLabel={label}
+      accessibilityRole="text"
       style={{
         alignSelf: 'flex-start',
         borderRadius: radius.full,

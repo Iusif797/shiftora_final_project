@@ -1,11 +1,10 @@
 import { useCallback, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft } from 'lucide-react-native';
-import { Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '@/lib/api/api';
 import { getLocationForCheckin } from '@/lib/checkin';
@@ -56,9 +55,10 @@ export default function ScanQR() {
     },
   });
 
+  const { isPending, mutate } = checkinMutation;
   const handleBarCodeScanned = useCallback(
     ({ data }: { data: string }) => {
-      if (scanned || checkinMutation.isPending) return;
+      if (scanned || isPending) return;
       const assignmentId = parseShiftAssignmentId(data);
       if (!assignmentId) {
         setError('Invalid QR code');
@@ -66,9 +66,9 @@ export default function ScanQR() {
       }
       setScanned(true);
       setError(null);
-      checkinMutation.mutate({ shiftAssignmentId: assignmentId, qrPayload: data });
+      mutate({ shiftAssignmentId: assignmentId, qrPayload: data });
     },
-    [scanned, checkinMutation]
+    [scanned, isPending, mutate]
   );
 
   if (!permission) {

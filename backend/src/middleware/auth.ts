@@ -1,5 +1,6 @@
 import { type Context, type Next } from "hono";
 import { auth } from "../auth";
+import { AppError } from "./error-handler";
 
 export interface SessionUser {
   id: string;
@@ -47,4 +48,10 @@ export function requireRole(c: Context, roles: string[]): SessionUser | null {
   if (!user) return null;
   if (!roles.includes(user.role)) return null;
   return user;
+}
+
+export function assertRestaurantAccess(user: SessionUser, resourceRestaurantId: string): void {
+  if (user.restaurantId !== resourceRestaurantId) {
+    throw new AppError(403, "Нет доступа", "FORBIDDEN");
+  }
 }

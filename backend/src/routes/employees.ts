@@ -1,21 +1,31 @@
 import { Hono } from "hono";
 import { prisma } from "../prisma";
-import { type AuthContext, getAuthUser } from "../middleware/auth";
+import { type AuthContext, assertRestaurantAccess, getAuthUser } from "../middleware/auth";
 
 const router = new Hono<AuthContext>();
 
 router.get("/", async (c) => {
   const user = getAuthUser(c);
   if (!user) return c.json({ error: { message: "Unauthorized" } }, 401);
-  if (!user.restaurantId) return c.json({ data: [] });
+  if (!user.restaurantId) return c.json({ data: { items: [], total: 0, page: 1, totalPages: 0 } });
 
-  const employees = await prisma.employee.findMany({
-    where: { restaurantId: user.restaurantId },
-    include: { user: true },
-    orderBy: { createdAt: "asc" },
-  });
+  const page = Math.max(1, Number(c.req.query("page")) || 1);
+  const limit = Math.min(50, Math.max(1, Number(c.req.query("limit")) || 20));
+  const skip = (page - 1) * limit;
 
-  return c.json({ data: employees });
+  const [employees, total] = await Promise.all([
+    prisma.employee.findMany({
+      where: { restaurantId: user.restaurantId },
+      include: { user: true },
+      orderBy: { createdAt: "asc" },
+      skip,
+      take: limit,
+    }),
+    prisma.employee.count({ where: { restaurantId: user.restaurantId } }),
+  ]);
+
+  const totalPages = Math.ceil(total / limit);
+  return c.json({ data: { items: employees, total, page, totalPages } });
 });
 
 router.post("/profile", async (c) => {
@@ -55,8 +65,8 @@ router.get("/:id", async (c) => {
   });
 
   if (!employee) return c.json({ error: { message: "Not found" } }, 404);
-  if (user.restaurantId && employee.restaurantId !== user.restaurantId) {
-    return c.json({ error: { message: "Forbidden" } }, 403);
+  if (user.restaurantId && employee.restaurantId) {
+    assertRestaurantAccess(user, employee.restaurantId);
   }
 
   return c.json({ data: employee });
@@ -73,9 +83,7 @@ router.put("/:id", async (c) => {
 
   const employee = await prisma.employee.findUnique({ where: { id } });
   if (!employee) return c.json({ error: { message: "Not found" } }, 404);
-  if (employee.restaurantId !== user.restaurantId) {
-    return c.json({ error: { message: "Forbidden" } }, 403);
-  }
+  if (employee.restaurantId) assertRestaurantAccess(user, employee.restaurantId);
 
   const body = await c.req.json();
   const { position, hourlyRate, isActive } = body;

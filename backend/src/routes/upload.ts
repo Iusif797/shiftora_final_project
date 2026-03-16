@@ -14,6 +14,9 @@ interface UploadResult {
 
 const router = new Hono<AuthContext>();
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const ALLOWED_MIMES = ["image/jpeg", "image/png", "image/webp"];
+
 router.post("/", async (c) => {
   const user = getAuthUser(c);
   if (!user) return c.json({ error: { message: "Unauthorized" } }, 401);
@@ -23,6 +26,15 @@ router.post("/", async (c) => {
 
   if (!file || !(file instanceof File)) {
     return c.json({ error: { message: "No file provided" } }, 400);
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    return c.json({ error: { message: "Файл слишком большой", code: "FILE_TOO_LARGE" } }, 413);
+  }
+
+  const mime = file.type?.toLowerCase();
+  if (!mime || !ALLOWED_MIMES.includes(mime)) {
+    return c.json({ error: { message: "Недопустимый тип файла", code: "INVALID_FILE_TYPE" } }, 415);
   }
 
   const storageForm = new FormData();

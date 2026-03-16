@@ -15,6 +15,7 @@ import { analyticsRouter } from "./routes/analytics";
 import { userRouter } from "./routes/users";
 import { uploadRouter } from "./routes/upload";
 import { invitationRouter } from "./routes/invitations";
+import { prisma } from "./prisma";
 
 type AppVars = {
   Variables: {
@@ -34,10 +35,12 @@ app.use(
   cors({
     origin: (origin) => {
       if (!origin) return origin;
+      if (env.ALLOWED_ORIGIN) {
+        const allowed = env.ALLOWED_ORIGIN.split(",").map((o) => o.trim());
+        return allowed.includes(origin) ? origin : undefined;
+      }
       if (isProduction) {
         const allowedPatterns = [
-          "localhost",
-          "127.0.0.1",
           ".shiftora.app",
           ".railway.app",
           ".fly.dev",
@@ -59,6 +62,11 @@ app.use(
 app.use("*", logger());
 
 app.use("/api/auth/*", rateLimit(20, 60_000));
+app.use("/api/invitations/accept/*", rateLimit(5, 10 * 60 * 1000));
+app.use("/api/*", async (c, next) => {
+  if (c.req.path.startsWith("/api/auth")) return next();
+  return rateLimit(100, 60_000)(c, next);
+});
 
 app.use("*", async (c, next) => {
   const session = await auth.api.getSession({ headers: c.req.raw.headers });
@@ -72,7 +80,22 @@ app.use("*", async (c, next) => {
   await next();
 });
 
-app.get("/health", (c) => c.json({ status: "ok", service: "shiftora-api", env: env.NODE_ENV }));
+app.get("/health", async (c) => {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("timeout")), 3000)
+  );
+  try {
+    await Promise.race([prisma.$queryRaw`SELECT 1`, timeout]);
+    return c.json({
+      data: { status: "ok", db: "ok", uptime: process.uptime() },
+    });
+  } catch {
+    return c.json(
+      { error: { message: "Service unavailable", code: "DB_UNREACHABLE" } },
+      503
+    );
+  }
+});
 
 app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 

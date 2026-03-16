@@ -1,28 +1,44 @@
 {
   "expo": {
     "name": "Shiftora",
-    "slug": "vibecode",
-    "scheme": "vibecode",
+    "slug": "shiftora",
+    "scheme": "shiftora",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "icon": "./assets/icon.png",
     "splash": {
-      "backgroundColor": "#000000"
+      "image": "./assets/splash.png",
+      "backgroundColor": "#000000",
+      "resizeMode": "contain"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.shiftora.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "Shiftora uses the camera for shift check-in photo verification and QR code scanning.",
-        "NSLocationWhenInUseUsageDescription": "Shiftora uses your location to verify check-in proximity to the restaurant.",
-        "NSPhotoLibraryUsageDescription": "Shiftora accesses your photo library to upload a profile picture."
-      }
+        "NSCameraUsageDescription": "Shiftora использует камеру для QR-сканирования при отметке явки и для фото при check-in.",
+        "NSLocationWhenInUseUsageDescription": "Shiftora использует геолокацию для проверки близости к ресторану при отметке явки.",
+        "NSPhotoLibraryUsageDescription": "Shiftora использует доступ к фото для загрузки аватара в профиль."
+      },
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+          }
+        ]
+      },
+      "buildNumber": "1"
     },
     "android": {
       "edgeToEdgeEnabled": true,
       "package": "com.shiftora.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#000000"
+      },
       "permissions": [
         "CAMERA",
         "ACCESS_FINE_LOCATION",

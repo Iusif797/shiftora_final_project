@@ -53,6 +53,7 @@ model User {
   email         String    @unique
   emailVerified Boolean   @default(false)
   image         String?
+  pushToken     String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   role          UserRole  @default(employee)

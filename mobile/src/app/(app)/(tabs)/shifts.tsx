@@ -297,7 +297,7 @@ export default function Shifts() {
 
   const { data: employees } = useQuery({
     queryKey: ['employees'],
-    queryFn: () => api.get<Employee[]>('/api/employees'),
+    queryFn: () => api.get<{ items: Employee[] }>('/api/employees?limit=100'),
     enabled: isManager,
   });
 
@@ -363,7 +363,7 @@ export default function Shifts() {
         <View style={{ position: 'absolute', bottom: 100, right: 20, flexDirection: 'row', gap: 12 }}>
           <Pressable
             onPress={() => generateMutation.mutate()}
-            disabled={generateMutation.isPending || !employees?.length}
+            disabled={generateMutation.isPending || !employees?.items?.length}
             style={{
               width: 56,
               height: 56,
@@ -411,7 +411,7 @@ export default function Shifts() {
         visible={showCreate}
         onClose={() => setShowCreate(false)}
         onCreated={() => queryClient.invalidateQueries({ queryKey: ['shifts'] })}
-        employees={employees ?? []}
+        employees={employees?.items ?? []}
       />
       <QRModal shift={qrShift} visible={!!qrShift} onClose={() => setQrShift(null)} />
     </>

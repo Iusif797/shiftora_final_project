@@ -6,7 +6,7 @@ export const authClient = createAuthClient({
   baseURL: process.env.EXPO_PUBLIC_BACKEND_URL! as string,
   plugins: [
     expoClient({
-      scheme: "vibecode",
+      scheme: "shiftora",
       storagePrefix: "shiftora",
       storage: SecureStore,
     }),

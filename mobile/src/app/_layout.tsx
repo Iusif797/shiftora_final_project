@@ -1,21 +1,36 @@
-import { Text, View } from 'react-native';
-import { Stack } from 'expo-router';
+import * as Sentry from '@sentry/react-native';
 import * as SplashScreen from 'expo-splash-screen';
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Text, View } from 'react-native';
 import { WifiOff } from 'lucide-react-native';
+import { ErrorBoundary } from '@/components/error-boundary';
 import { useSession } from '@/lib/auth/use-session';
 import { useNetworkStatus } from '@/lib/use-network';
 import { colors, typography, spacing } from '@/theme';
 import type { AppUser } from '@/types/app';
 import '../../global.css';
 
+const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
+if (dsn) {
+  Sentry.init({
+    dsn,
+    tracesSampleRate: 0.2,
+  });
+}
+
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: 1, staleTime: 1000 * 60 * 2 },
+    queries: {
+      staleTime: 2 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
   },
 });
 
@@ -46,7 +61,13 @@ function RootLayoutNav() {
   const user = session?.user as AppUser | undefined;
   const needsOnboarding = !!user && !user.restaurantId;
 
-  if (isLoading) return null;
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#070711' }}>
+        <StatusBar style="light" />
+      </View>
+    );
+  }
 
   return (
     <View
@@ -79,12 +100,16 @@ function RootLayoutNav() {
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <RootLayoutNav />
-      </GestureHandlerRootView>
+      <ErrorBoundary>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <RootLayoutNav />
+        </GestureHandlerRootView>
+      </ErrorBoundary>
     </QueryClientProvider>
   );
 }
+
+export default dsn ? Sentry.wrap(RootLayout) : RootLayout;

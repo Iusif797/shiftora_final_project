@@ -16,6 +16,24 @@ router.get("/me", async (c) => {
   return c.json({ data: fullUser });
 });
 
+router.post("/push-token", async (c) => {
+  const user = getAuthUser(c);
+  if (!user) return c.json({ error: { message: "Unauthorized" } }, 401);
+
+  const body = await c.req.json().catch(() => ({} as { token?: string }));
+  const token = body.token;
+  if (!token || typeof token !== "string") {
+    return c.json({ error: { message: "token required" } }, 400);
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { pushToken: token },
+  });
+
+  return c.json({ data: { success: true } });
+});
+
 router.patch("/me", async (c) => {
   const user = getAuthUser(c);
   if (!user) return c.json({ error: { message: "Unauthorized" } }, 401);

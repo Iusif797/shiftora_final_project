@@ -88,6 +88,13 @@ export interface AnalyticsOverview {
   anomalyCount: number;
 }
 
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
 export interface Invitation {
   id: string;
   code: string;

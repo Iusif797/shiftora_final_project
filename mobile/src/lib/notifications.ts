@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 
 const SHIFT_REMINDER_MINS = 30;
@@ -28,6 +29,17 @@ async function ensureChannel(): Promise<void> {
       importance: Notifications.AndroidImportance.HIGH,
     });
   }
+}
+
+export async function registerPushToken(sendToken: (token: string) => Promise<void>): Promise<void> {
+  if (!Device.isDevice) return;
+  const granted = await requestNotificationPermissions();
+  if (!granted) return;
+
+  const tokenData = await Notifications.getExpoPushTokenAsync({
+    projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
+  });
+  await sendToken(tokenData.data);
 }
 
 export async function scheduleShiftReminders(

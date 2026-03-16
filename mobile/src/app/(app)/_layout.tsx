@@ -1,7 +1,14 @@
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
+import { api } from '@/lib/api/api';
+import { registerPushToken } from '@/lib/notifications';
 import { colors } from '@/theme';
 
 export default function AppLayout() {
+  useEffect(() => {
+    registerPushToken((token) => api.post('/api/users/push-token', { token })).catch(() => {});
+  }, []);
+
   return (
     <Stack
       screenOptions={{
