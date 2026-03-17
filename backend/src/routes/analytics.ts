@@ -7,6 +7,7 @@ import {
   getOverview,
   getWorkloadForecast,
 } from "../services/analytics";
+import { assertFeature } from "../middleware/subscription";
 
 const router = new Hono<AuthContext>();
 
@@ -82,7 +83,20 @@ router.get("/insights", async (c) => {
     });
   }
 
+  await assertFeature(user.restaurantId, "aiInsights");
+
   const data = await getInsights(user.restaurantId);
+  return c.json({ data });
+});
+
+router.get("/labor-cost-detail", async (c) => {
+  const user = getAuthUser(c);
+  if (!user) return c.json({ error: { message: "Unauthorized" } }, 401);
+  if (!user.restaurantId) return c.json({ data: [] });
+
+  await assertFeature(user.restaurantId, "advancedAnalytics");
+
+  const data = await getByEmployee(user.restaurantId);
   return c.json({ data });
 });
 

@@ -5,6 +5,7 @@ import { prisma } from "../prisma";
 import { generateShifts } from "../services/shift-generator";
 import { sendPushNotification } from "../services/notifications";
 import { type AuthContext, assertRestaurantAccess, getAuthUser } from "../middleware/auth";
+import { assertFeature, assertShiftLimit } from "../middleware/subscription";
 
 const router = new Hono<AuthContext>();
 
@@ -105,6 +106,8 @@ router.post("/generate", zValidator("json", generateSchema), async (c) => {
   }
   if (!user.restaurantId) return c.json({ error: { message: "No restaurant" } }, 400);
 
+  await assertFeature(user.restaurantId, "aiShiftGeneration");
+
   const body = c.req.valid("json");
   const startDate = body.startDate ? new Date(body.startDate) : undefined;
   const endDate = body.endDate ? new Date(body.endDate) : undefined;
@@ -126,6 +129,8 @@ router.post("/", zValidator("json", createShiftSchema), async (c) => {
     return c.json({ error: { message: "Forbidden" } }, 403);
   }
   if (!user.restaurantId) return c.json({ error: { message: "No restaurant" } }, 400);
+
+  await assertShiftLimit(user.restaurantId);
 
   const { title, startTime, endTime, notes, maxEmployees } = c.req.valid("json");
 

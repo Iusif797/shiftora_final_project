@@ -4,13 +4,16 @@ import { useMutation } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Camera, Edit2, Check, Settings } from 'lucide-react-native';
+import { Camera, Edit2, Check, Settings, Zap } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { AppBackground, ScreenHeader } from '@/components/app-shell';
 import { PrimaryButton, SecondaryButton, AccentBadge } from '@/components/buttons';
 import { ErrorState, SurfaceCard } from '@/components/cards';
+import { PlanBadge } from '@/components/paywall';
 import { FormField } from '@/components/form-field';
 import { api } from '@/lib/api/api';
 import { useSession, useInvalidateSession } from '@/lib/auth/use-session';
+import { useSubscription } from '@/lib/use-subscription';
 import { pickImage } from '@/lib/file-picker';
 import { uploadFile } from '@/lib/upload';
 import { getInitials } from '@/lib/formatters';
@@ -23,6 +26,7 @@ export default function ProfileScreen() {
   const invalidateSession = useInvalidateSession();
   const user = session?.user as AppUser | undefined;
   const role = roleAppearance[user?.role ?? 'employee'];
+  const { data: sub } = useSubscription();
 
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(user?.name ?? '');
@@ -183,6 +187,56 @@ export default function ProfileScreen() {
               </View>
             )}
           </SurfaceCard>
+
+          {/* Subscription card — only for owner */}
+          {user?.role === 'owner' ? (
+            <SurfaceCard>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
+                <View>
+                  <Text style={{ ...typography.label, color: colors.text.tertiary, marginBottom: 4 }}>Подписка</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                    {sub ? <PlanBadge plan={sub.plan} /> : null}
+                    <Text style={{ ...typography.body, color: colors.text.secondary }}>
+                      {sub?.planName ?? 'Free'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {sub?.plan === 'free' ? (
+                <Pressable
+                  onPress={() => router.push('/(app)/billing')}
+                  testID="upgrade-from-profile-button"
+                  style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1 }]}
+                >
+                  <LinearGradient
+                    colors={['#4C3ABF', '#8266FF']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{
+                      height: 46,
+                      borderRadius: radius.xl,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: spacing.sm,
+                    }}
+                  >
+                    <Zap color="#FFFFFF" size={16} strokeWidth={2.5} />
+                    <Text style={{ ...typography.h4, color: '#FFFFFF', fontWeight: '700' }}>
+                      Обновить план
+                    </Text>
+                  </LinearGradient>
+                </Pressable>
+              ) : (
+                <SecondaryButton
+                  label="Управление подпиской"
+                  onPress={() => router.push('/(app)/billing')}
+                />
+              )}
+            </SurfaceCard>
+          ) : null}
+
         </ScrollView>
       </SafeAreaView>
     </AppBackground>

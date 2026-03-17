@@ -9,6 +9,11 @@ const envSchema = z.object({
   ALLOWED_ORIGIN: z.string().optional(),
   SENTRY_DSN: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRO_PRICE_ID: z.string().optional(),
+  STRIPE_BUSINESS_PRICE_ID: z.string().optional(),
+  FRONTEND_URL: z.string().optional().default("http://localhost:8081"),
 });
 
 function validateEnv() {

@@ -27,6 +27,10 @@ export default function AppLayout() {
         options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
       />
       <Stack.Screen name="attendance" />
+      <Stack.Screen
+        name="billing"
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
     </Stack>
   );
 }

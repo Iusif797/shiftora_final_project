@@ -15,6 +15,7 @@ import { analyticsRouter } from "./routes/analytics";
 import { userRouter } from "./routes/users";
 import { uploadRouter } from "./routes/upload";
 import { invitationRouter } from "./routes/invitations";
+import { billingRouter } from "./routes/billing";
 import { prisma } from "./prisma";
 
 type AppVars = {
@@ -110,6 +111,7 @@ app.route("/api/analytics", analyticsRouter);
 app.route("/api/users", userRouter);
 app.route("/api/upload", uploadRouter);
 app.route("/api/invitations", invitationRouter);
+app.route("/api/billing", billingRouter);
 
 const port = Number(env.PORT);
 

@@ -47,6 +47,20 @@ enum InvitationStatus {
   REVOKED
 }
 
+enum PlanTier {
+  free
+  pro
+  business
+}
+
+enum SubscriptionStatus {
+  active
+  past_due
+  canceled
+  trialing
+  incomplete
+}
+
 model User {
   id            String    @id
   name          String
@@ -139,12 +153,13 @@ model Restaurant {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  owner       User          @relation("owner", fields: [ownerId], references: [id])
-  employees   Employee[]
-  shifts      Shift[]
-  checkins    Checkin[]
-  anomalies   Anomaly[]
-  invitations Invitation[]
+  owner        User          @relation("owner", fields: [ownerId], references: [id])
+  employees    Employee[]
+  shifts       Shift[]
+  checkins     Checkin[]
+  anomalies    Anomaly[]
+  invitations  Invitation[]
+  subscription Subscription?
 }
 
 model Employee {
@@ -245,6 +260,27 @@ model Anomaly {
 
   @@index([restaurantId])
   @@index([restaurantId, isResolved])
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  restaurantId         String             @unique
+  stripeCustomerId     String             @unique
+  stripeSubscriptionId String?            @unique
+  stripePriceId        String?
+  plan                 PlanTier           @default(free)
+  status               SubscriptionStatus @default(active)
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  trialEnd             DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@index([stripeCustomerId])
 }
 
 model Invitation {

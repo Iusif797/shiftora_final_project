@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { prisma } from "../prisma";
 import { type AuthContext, assertRestaurantAccess, getAuthUser } from "../middleware/auth";
+import { assertEmployeeLimit } from "../middleware/subscription";
 
 const router = new Hono<AuthContext>();
 
@@ -35,6 +36,12 @@ router.post("/profile", async (c) => {
 
   const body = await c.req.json();
   const { position, hourlyRate } = body;
+
+  // Only enforce limit when creating a new employee profile
+  const existingEmployee = await prisma.employee.findUnique({ where: { userId: user.id } });
+  if (!existingEmployee) {
+    await assertEmployeeLimit(user.restaurantId);
+  }
 
   const employee = await prisma.employee.upsert({
     where: { userId: user.id },
