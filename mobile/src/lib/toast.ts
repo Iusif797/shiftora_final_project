@@ -1,13 +1,13 @@
-import * as Burnt from 'burnt';
+import { Alert } from 'react-native';
 
 export function showSuccess(title: string, message?: string) {
-  Burnt.toast({ title, message, preset: 'done' });
+  Alert.alert(title, message ?? '', [{ text: 'OK' }]);
 }
 
 export function showError(title: string, message?: string) {
-  Burnt.toast({ title, message, preset: 'error' });
+  Alert.alert(title, message ?? '', [{ text: 'OK' }]);
 }
 
 export function showAlert(title: string, message: string) {
-  Burnt.alert({ title, message, preset: 'error' });
+  Alert.alert(title, message, [{ text: 'OK' }]);
 }

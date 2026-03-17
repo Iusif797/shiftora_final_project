@@ -8,6 +8,7 @@ import { ScreenScroll } from '@/components/app-shell';
 import { AccentBadge, PrimaryButton } from '@/components/buttons';
 import { EmptyState, SurfaceCard } from '@/components/cards';
 import { api } from '@/lib/api/api';
+import { showError, showSuccess } from '@/lib/toast';
 import { useSession } from '@/lib/auth/use-session';
 import { formatDate, formatTime } from '@/lib/formatters';
 import { colors, radius, spacing, statusAppearance, typography } from '@/theme';
@@ -306,7 +307,10 @@ export default function Shifts() {
     onSuccess: (data) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ['shifts'] });
+      const count = data?.created ?? 0;
+      showSuccess(count > 0 ? `${count} shifts created` : 'Schedule up to date', count > 0 ? 'Auto-generated for next week.' : 'No new slots needed.');
     },
+    onError: (err) => showError('Generation failed', err.message),
   });
 
   const { data: myShifts, isLoading: loadingMy } = useQuery({
@@ -360,10 +364,10 @@ export default function Shifts() {
       </ScreenScroll>
 
       {isManager ? (
-        <View style={{ position: 'absolute', bottom: 100, right: 20, flexDirection: 'row', gap: 12 }}>
+        <View style={{ position: 'absolute', bottom: 130, right: 20, flexDirection: 'row', gap: 12 }}>
           <Pressable
             onPress={() => generateMutation.mutate()}
-            disabled={generateMutation.isPending || !employees?.items?.length}
+            disabled={generateMutation.isPending}
             style={{
               width: 56,
               height: 56,

@@ -1,4 +1,5 @@
 import { prisma } from "../prisma";
+import { generateAIInsights, type InsightsMetrics } from "./ai-insights";
 
 export async function getOverview(restaurantId: string) {
   const now = new Date();
@@ -247,52 +248,13 @@ export async function getWorkloadForecast(
   return { slots: slots.filter((s) => s.shortage > 0 || s.assigned > 0) };
 }
 
-export async function getInsights(restaurantId: string) {
-  const now = new Date();
-  const lastMonth = new Date(now);
-  lastMonth.setMonth(now.getMonth() - 1);
-
-  const [employees, shifts, checkins, anomalies] = await Promise.all([
-    prisma.employee.findMany({
-      where: { restaurantId },
-      include: {
-        checkins: { where: { checkinTime: { gte: lastMonth } } },
-        assignments: {
-          where: { shift: { startTime: { gte: lastMonth } } },
-          include: { shift: true },
-        },
-      },
-    }),
-    prisma.shift.findMany({
-      where: { restaurantId, startTime: { gte: lastMonth } },
-    }),
-    prisma.checkin.findMany({
-      where: { restaurantId, checkinTime: { gte: lastMonth } },
-    }),
-    prisma.anomaly.findMany({
-      where: { restaurantId, detectedAt: { gte: lastMonth } },
-    }),
-  ]);
-
-  const avgCheckinTime = checkins.length > 0
-    ? checkins.reduce((sum, ck) => sum + ck.checkinTime.getHours(), 0) / checkins.length
-    : 0;
-
-  const totalHoursWorked = checkins.reduce((sum, ck) => {
-    if (ck.checkoutTime) {
-      return sum + (ck.checkoutTime.getTime() - ck.checkinTime.getTime()) / (1000 * 60 * 60);
-    }
-    return sum;
-  }, 0);
-
-  const avgHoursPerEmployee = employees.length > 0 ? totalHoursWorked / employees.length : 0;
-  const attendanceRate =
-    shifts.length > 0
-      ? Math.round(
-          (checkins.filter((ck) => ck.checkoutTime).length / (shifts.length * 0.8)) * 100
-        )
-      : 0;
-
+function getInsightsRules(
+  avgHoursPerEmployee: number,
+  attendanceRate: number,
+  anomalies: { isResolved: boolean }[],
+  checkins: { checkinTime: Date; checkoutTime: Date | null }[],
+  employees: { checkins: unknown[] }[]
+) {
   const trends: { type: string; title: string; description: string; severity: string }[] = [];
   if (avgHoursPerEmployee > 40) {
     trends.push({
@@ -328,6 +290,9 @@ export async function getInsights(restaurantId: string) {
       priority: "high",
     });
   }
+  const avgCheckinTime = checkins.length > 0
+    ? checkins.reduce((sum, ck) => sum + ck.checkinTime.getHours(), 0) / checkins.length
+    : 0;
   if (avgCheckinTime > 9) {
     recommendations.push({
       id: "late-checkins",
@@ -378,6 +343,79 @@ export async function getInsights(restaurantId: string) {
       suggestedAction: "Remind staff to check out at end of shift",
     });
   }
+
+  return { trends, recommendations, staffingHealth, predictedChallenges };
+}
+
+export async function getInsights(restaurantId: string) {
+  const now = new Date();
+  const lastMonth = new Date(now);
+  lastMonth.setMonth(now.getMonth() - 1);
+
+  const [employees, shifts, checkins, anomalies] = await Promise.all([
+    prisma.employee.findMany({
+      where: { restaurantId },
+      include: {
+        checkins: { where: { checkinTime: { gte: lastMonth } } },
+        assignments: {
+          where: { shift: { startTime: { gte: lastMonth } } },
+          include: { shift: true },
+        },
+      },
+    }),
+    prisma.shift.findMany({
+      where: { restaurantId, startTime: { gte: lastMonth } },
+    }),
+    prisma.checkin.findMany({
+      where: { restaurantId, checkinTime: { gte: lastMonth } },
+    }),
+    prisma.anomaly.findMany({
+      where: { restaurantId, detectedAt: { gte: lastMonth } },
+    }),
+  ]);
+
+  const avgCheckinTime = checkins.length > 0
+    ? checkins.reduce((sum, ck) => sum + ck.checkinTime.getHours(), 0) / checkins.length
+    : 0;
+
+  const totalHoursWorked = checkins.reduce((sum, ck) => {
+    if (ck.checkoutTime) {
+      return sum + (ck.checkoutTime.getTime() - ck.checkinTime.getTime()) / (1000 * 60 * 60);
+    }
+    return sum;
+  }, 0);
+
+  const avgHoursPerEmployee = employees.length > 0 ? totalHoursWorked / employees.length : 0;
+  const attendanceRate =
+    shifts.length > 0
+      ? Math.round(
+          (checkins.filter((ck) => ck.checkoutTime).length / (shifts.length * 0.8)) * 100
+        )
+      : 0;
+
+  const metrics: InsightsMetrics = {
+    avgHoursPerEmployee,
+    attendanceRate,
+    totalAnomalies: anomalies.length,
+    activeEmployees: employees.filter((e) => e.isActive).length,
+    avgCheckinTime,
+    totalHoursWorked,
+    unresolvedAnomalies: anomalies.filter((a) => !a.isResolved).length,
+    incompleteCheckouts: checkins.filter((ck) => !ck.checkoutTime).length,
+    inactiveStaffCount: employees.filter((e) => e.checkins.length === 0).length,
+  };
+
+  const aiResult = await generateAIInsights(metrics);
+  const rules = getInsightsRules(
+    avgHoursPerEmployee,
+    attendanceRate,
+    anomalies,
+    checkins,
+    employees
+  );
+
+  const { trends, recommendations, staffingHealth, predictedChallenges } =
+    aiResult ?? rules;
 
   return {
     trends,

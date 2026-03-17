@@ -1,39 +1,141 @@
-import { Tabs } from 'expo-router';
-import { View, Text } from 'react-native';
+import { useCallback } from 'react';
+import { Pressable, View, Text, Platform, StyleSheet } from 'react-native';
+import { Tabs, router } from 'expo-router';
+import { BlurView } from 'expo-blur';
+import Animated, {
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  interpolateColor,
+  useSharedValue,
+  withSequence,
+} from 'react-native-reanimated';
 import { Home, Calendar, Users, BarChart3, UserCircle } from 'lucide-react-native';
 import { useSession } from '@/lib/auth/use-session';
-import { colors, radius, typography } from '@/theme';
+import { colors, radius } from '@/theme';
 import type { AppUser } from '@/types/app';
 import type { LucideIcon } from 'lucide-react-native';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
-function TabIcon({
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+const TAB_ITEMS: { name: string; icon: LucideIcon; label: string; roles?: string[] }[] = [
+  { name: 'index', icon: Home, label: 'Home' },
+  { name: 'shifts', icon: Calendar, label: 'Schedule' },
+  { name: 'employees', icon: Users, label: 'Team', roles: ['manager', 'owner'] },
+  { name: 'analytics', icon: BarChart3, label: 'Analytics', roles: ['owner'] },
+  { name: 'profile', icon: UserCircle, label: 'Profile' },
+];
+
+function TabButton({
   icon: Icon,
-  color,
-  focused,
   label,
+  focused,
+  onPress,
 }: {
   icon: LucideIcon;
-  color: string;
-  focused: boolean;
   label: string;
+  focused: boolean;
+  onPress: () => void;
 }) {
+  const scale = useSharedValue(1);
+
+  const animatedIconContainer = useAnimatedStyle(() => ({
+    backgroundColor: withTiming(
+      focused ? 'rgba(255, 255, 255, 0.12)' : 'transparent',
+      { duration: 250 }
+    ),
+    transform: [{ scale: withSpring(scale.value, { damping: 15, stiffness: 200 }) }],
+  }));
+
+  const animatedLabel = useAnimatedStyle(() => ({
+    opacity: withTiming(focused ? 1 : 0.5, { duration: 200 }),
+    transform: [
+      {
+        translateY: withSpring(focused ? 0 : 2, { damping: 15, stiffness: 200 }),
+      },
+    ],
+  }));
+
+  const animatedDot = useAnimatedStyle(() => ({
+    opacity: withTiming(focused ? 1 : 0, { duration: 200 }),
+    transform: [{ scale: withSpring(focused ? 1 : 0, { damping: 12, stiffness: 180 }) }],
+  }));
+
+  const handlePressIn = useCallback(() => {
+    scale.value = withSequence(
+      withSpring(0.85, { damping: 15, stiffness: 400 }),
+      withSpring(1, { damping: 10, stiffness: 200 })
+    );
+  }, [scale]);
+
   return (
-    <View style={{ alignItems: 'center', justifyContent: 'center', gap: 4, minWidth: 58 }}>
-      <View
-        style={{
-          width: 32,
-          height: 32,
-          borderRadius: radius.md,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: focused ? 'rgba(255,255,255,0.1)' : 'transparent',
-        }}
+    <AnimatedPressable
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      style={styles.tabButton}
+      hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+    >
+      <Animated.View style={[styles.iconContainer, animatedIconContainer]}>
+        <Icon
+          color={focused ? '#FFFFFF' : colors.text.tertiary}
+          size={21}
+          strokeWidth={focused ? 2.4 : 1.8}
+        />
+      </Animated.View>
+      <Animated.Text
+        style={[
+          styles.tabLabel,
+          { color: focused ? '#FFFFFF' : colors.text.tertiary },
+          animatedLabel,
+        ]}
       >
-        <Icon color={focused ? colors.text.primary : color} size={20} strokeWidth={focused ? 2.5 : 2} />
-      </View>
-      <Text style={{ ...typography.caption, fontSize: 10, color: focused ? colors.text.primary : colors.text.tertiary }}>
         {label}
-      </Text>
+      </Animated.Text>
+      <Animated.View style={[styles.activeDot, animatedDot]} />
+    </AnimatedPressable>
+  );
+}
+
+function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const { data: session } = useSession();
+  const role = (session?.user as AppUser | undefined)?.role ?? 'employee';
+
+  const visibleTabs = TAB_ITEMS.filter(
+    (tab) => !tab.roles || tab.roles.includes(role)
+  );
+
+  return (
+    <View style={styles.tabBarOuter}>
+      <BlurView intensity={40} tint="dark" style={styles.blurContainer}>
+        <View style={styles.tabBarInner}>
+          {state.routes.map((route, index) => {
+            const tab = visibleTabs.find((t) => t.name === route.name);
+            if (!tab) return null;
+
+            const focused = state.index === index;
+
+            return (
+              <TabButton
+                key={route.key}
+                icon={tab.icon}
+                label={tab.label}
+                focused={focused}
+                onPress={() => {
+                  const event = navigation.emit({
+                    type: 'tabPress',
+                    target: route.key,
+                    canPreventDefault: true,
+                  });
+                  if (!focused && !event.defaultPrevented) {
+                    navigation.navigate(route.name);
+                  }
+                }}
+              />
+            );
+          })}
+        </View>
+      </BlurView>
     </View>
   );
 }
@@ -44,52 +146,18 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarShowLabel: false,
-        tabBarStyle: {
-          position: 'absolute',
-          left: 16,
-          right: 16,
-          bottom: 24,
-          height: 72,
-          borderRadius: 24,
-          backgroundColor: colors.bg.surface,
-          borderTopWidth: 0,
-          borderWidth: 1,
-          borderColor: colors.border.subtle,
-          paddingTop: 8,
-          paddingBottom: 28,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.35,
-          shadowRadius: 16,
-          elevation: 12,
-        },
-        tabBarActiveTintColor: colors.text.primary,
-        tabBarInactiveTintColor: colors.text.tertiary,
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Dashboard',
-          tabBarIcon: ({ color, focused }) => <TabIcon icon={Home} color={color} focused={focused} label="Dashboard" />,
-        }}
-      />
-      <Tabs.Screen
-        name="shifts"
-        options={{
-          title: 'Schedule',
-          tabBarIcon: ({ color, focused }) => <TabIcon icon={Calendar} color={color} focused={focused} label="Schedule" />,
-        }}
-      />
+      <Tabs.Screen name="index" options={{ title: 'Dashboard' }} />
+      <Tabs.Screen name="shifts" options={{ title: 'Schedule' }} />
       <Tabs.Screen
         name="employees"
         options={{
           title: 'Team',
           href: role === 'manager' || role === 'owner' ? undefined : null,
-          tabBarIcon: ({ color, focused }) => <TabIcon icon={Users} color={color} focused={focused} label="Team" />,
         }}
       />
       <Tabs.Screen
@@ -97,16 +165,64 @@ export default function TabsLayout() {
         options={{
           title: 'Analytics',
           href: role === 'owner' ? undefined : null,
-          tabBarIcon: ({ color, focused }) => <TabIcon icon={BarChart3} color={color} focused={focused} label="Analytics" />,
         }}
       />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, focused }) => <TabIcon icon={UserCircle} color={color} focused={focused} label="Profile" />,
-        }}
-      />
+      <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBarOuter: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    bottom: Platform.OS === 'ios' ? 28 : 16,
+    borderRadius: 28,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.5,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+  blurContainer: {
+    borderRadius: 28,
+    overflow: 'hidden',
+  },
+  tabBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    backgroundColor: 'rgba(10, 10, 10, 0.75)',
+  },
+  tabButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    gap: 4,
+  },
+  iconContainer: {
+    width: 40,
+    height: 34,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+  activeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#FFFFFF',
+    marginTop: 2,
+  },
+});

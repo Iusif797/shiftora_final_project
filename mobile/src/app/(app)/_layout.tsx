@@ -18,8 +18,14 @@ export default function AppLayout() {
       }}
     >
       <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="settings" />
-      <Stack.Screen name="alerts" />
+      <Stack.Screen
+        name="settings"
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="alerts"
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
       <Stack.Screen name="attendance" />
     </Stack>
   );

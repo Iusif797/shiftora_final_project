@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo } from 'react';
 import { ActivityIndicator, FlatList, Text, View } from 'react-native';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Briefcase, Users } from 'lucide-react-native';
 import { AppBackground, ScreenHeader } from '@/components/app-shell';
 import { AccentBadge } from '@/components/buttons';
@@ -9,6 +9,8 @@ import { api } from '@/lib/api/api';
 import { getColorForId, getInitials } from '@/lib/formatters';
 import { colors, radius, spacing, typography } from '@/theme';
 import type { Employee, PaginatedResponse } from '@/types/app';
+
+const PAGE_SIZE = 100;
 
 const EmployeeCard = memo(function EmployeeCard({ employee }: { employee: Employee }) {
   const accent = getColorForId(employee.id);
@@ -51,41 +53,22 @@ const EmployeeCard = memo(function EmployeeCard({ employee }: { employee: Employ
   );
 });
 
-const PAGE_SIZE = 20;
-
 function EmployeesScreen() {
-  const {
-    data,
-    isLoading,
-    isError,
-    error,
-    refetch,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useInfiniteQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['employees'],
-    queryFn: ({ pageParam = 1 }) =>
-      api.get<PaginatedResponse<Employee>>(`/api/employees?page=${pageParam}&limit=${PAGE_SIZE}`),
-    getNextPageParam: (last) => {
-      if (!last || typeof last !== 'object' || !('page' in last) || !('totalPages' in last)) return undefined;
-      return last.page < last.totalPages ? last.page + 1 : undefined;
-    },
-    initialPageParam: 1,
+    queryFn: () =>
+      api.get<PaginatedResponse<Employee>>(`/api/employees?page=1&limit=${PAGE_SIZE}`),
   });
 
   const employees = useMemo(
-    () => data?.pages.flatMap((p) => p?.items ?? []) ?? [],
-    [data?.pages]
+    () => (data?.items ?? []) as Employee[],
+    [data?.items]
   );
   const activeCount = useMemo(
     () => employees.filter((employee) => employee.isActive).length,
     [employees]
   );
   const handleRetry = useCallback(() => refetch(), [refetch]);
-  const handleEndReached = useCallback(() => {
-    if (hasNextPage && !isFetchingNextPage) fetchNextPage();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const renderItem = useCallback(
     ({ item }: { item: Employee }) => <EmployeeCard employee={item} />,
@@ -100,15 +83,7 @@ function EmployeesScreen() {
       ) : null}
     </View>
   );
-  const listFooter = useMemo(
-    () =>
-      isFetchingNextPage ? (
-        <View style={{ paddingVertical: spacing.lg, alignItems: 'center' }}>
-          <ActivityIndicator color={colors.brand.primary} size="small" />
-        </View>
-      ) : null,
-    [isFetchingNextPage]
-  );
+  const listFooter = null;
 
   if (isError) {
     return (
@@ -154,8 +129,6 @@ function EmployeesScreen() {
         keyExtractor={keyExtractor}
         ListHeaderComponent={listHeader}
         ListFooterComponent={listFooter}
-        onEndReached={handleEndReached}
-        onEndReachedThreshold={0.3}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: spacing.md, paddingBottom: 100 }}
         testID="employees-list"
       />

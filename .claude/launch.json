@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend-dev",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "--hot", "src/index.ts"],
+      "port": 3000
+    },
+    {
+      "name": "mobile-expo",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["expo", "start", "--go"],
+      "port": 8081
+    },
+    {
+      "name": "mobile-expo-dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["expo", "start"],
+      "port": 8081
+    },
+    {
+      "name": "cloud-studio",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["cloud-studio", "--port", "3001", "--hostname", "0.0.0.0"],
+      "port": 3001
+    }
+  ]
+}

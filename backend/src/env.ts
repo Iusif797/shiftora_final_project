@@ -8,6 +8,7 @@ const envSchema = z.object({
   BACKEND_URL: z.string().optional().default("http://localhost:3000"),
   ALLOWED_ORIGIN: z.string().optional(),
   SENTRY_DSN: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
 });
 
 function validateEnv() {
