@@ -39,14 +39,15 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 10,
-    // Требуем email-верификацию только если в окружении задан RESEND_API_KEY —
-    // иначе письмо отправить нечем, и sign-up намертво залипнет на "verify email".
-    // Когда добавите ключ в Render env, верификация включится автоматически.
-    requireEmailVerification:
-      env.NODE_ENV === "production" && Boolean(env.RESEND_API_KEY),
+    // Email-верификация включается ТОЛЬКО явным env-флагом EMAIL_VERIFICATION_REQUIRED=true.
+    // Это предотвращает ситуацию, когда существующие пользователи (созданные до
+    // включения проверки) оказываются заблокированы при логине из-за emailVerified=false.
+    requireEmailVerification: env.EMAIL_VERIFICATION_REQUIRED === "true",
   },
   emailVerification: {
-    sendOnSignUp: Boolean(env.RESEND_API_KEY),
+    // Письма с подтверждением шлём только если есть RESEND_API_KEY И флаг включён.
+    sendOnSignUp:
+      env.EMAIL_VERIFICATION_REQUIRED === "true" && Boolean(env.RESEND_API_KEY),
     autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url }) => {
       try {

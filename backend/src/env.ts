@@ -19,6 +19,14 @@ const envSchema = z.object({
   STRIPE_BUSINESS_PRICE_ID: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
   FROM_EMAIL: z.string().optional().default("Shiftora <noreply@example.com>"),
+  // Явный флаг включения email-верификации. По умолчанию off, чтобы существующие
+  // аккаунты не оказались заблокированы при первом деплое. Включайте, когда
+  // готовы рассылать письма (нужен RESEND_API_KEY) и точно знаете, что у всех
+  // юзеров emailVerified=true (либо готовы их вручную пометить).
+  EMAIL_VERIFICATION_REQUIRED: z
+    .enum(["true", "false"])
+    .optional()
+    .default("false"),
 });
 
 function validateEnv() {

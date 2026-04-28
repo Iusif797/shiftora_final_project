@@ -29,6 +29,10 @@ services:
         sync: false
       - key: FROM_EMAIL
         sync: false
+      # По умолчанию выключено — существующие юзеры не блокируются.
+      # Включить только когда готовы рассылать письма.
+      - key: EMAIL_VERIFICATION_REQUIRED
+        value: "false"
 
       # ─── Мониторинг ──────────────────────────────────────────────────────
       - key: SENTRY_DSN
