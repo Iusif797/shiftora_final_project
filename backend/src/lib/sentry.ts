@@ -1,4 +1,6 @@
-import * as Sentry from "@sentry/bun";
+// Используем @sentry/node — стабильный пакет, работает в Bun runtime.
+// (@sentry/bun в стабильной ветке отсутствует на момент написания.)
+import * as Sentry from "@sentry/node";
 import { env } from "../env";
 
 let initialized = false;
