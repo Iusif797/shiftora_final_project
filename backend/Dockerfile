@@ -5,14 +5,18 @@ WORKDIR /app
 RUN apk add --no-cache openssl
 
 FROM base AS deps
-COPY package.json bun.lock ./
+COPY package.json bun.lock* ./
 COPY prisma ./prisma/
-RUN bun install --frozen-lockfile --production
+# `bun install` без --frozen-lockfile — Render/Docker регенерирует lockfile,
+# если он расходится с package.json (мы добавили новые зависимости: pino, sentry).
+# После первого успешного деплоя можно локально выполнить `bun install`,
+# закоммитить обновлённый bun.lock и вернуть `--frozen-lockfile` для воспроизводимых сборок.
+RUN bun install --production
 
 FROM base AS build
-COPY package.json bun.lock ./
+COPY package.json bun.lock* ./
 COPY prisma ./prisma/
-RUN bun install --frozen-lockfile
+RUN bun install
 COPY src ./src/
 COPY tsconfig.json ./
 
@@ -40,4 +44,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 #      Если папка миграций пустая — fallback на `db push` с предупреждением,
 #      чтобы первый деплой не падал на проекте без миграций.
 #   2. Запустить сервер.
-CMD ["sh", "-c", "if [ -d prisma/migrations ] && [ \"$(ls -A prisma/migrations 2>/dev/null)\" ]; then bunx prisma migrate deploy; else echo '[startup] prisma/migrations пуста — fallback на db push'; bunx prisma db push --accept-data-loss; fi && exec bun src/index.ts"]
+CMD ["sh", "-c", "if [ -d prisma/migrations ] && [ -n \"$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d 2>/dev/null)\" ]; then echo '[startup] applying prisma migrations...'; bunx prisma migrate deploy; else echo '[startup] no prisma migrations found — running db push (idempotent)'; bunx prisma db push --accept-data-loss; fi && exec bun src/index.ts"]

@@ -5,6 +5,7 @@ services:
     rootDir: backend
     healthCheckPath: /health
     envVars:
+      # ─── Обязательные ─────────────────────────────────────────────────────
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
@@ -12,4 +13,37 @@ services:
       - key: BETTER_AUTH_SECRET
         sync: false
       - key: BACKEND_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+
+      # ─── CORS / origins ───────────────────────────────────────────────────
+      # CSV: https://app.shiftora.app,https://shiftora.app
+      - key: ALLOWED_ORIGIN
+        sync: false
+
+      # ─── Email (Resend) ──────────────────────────────────────────────────
+      # Без ключа email-верификация автоматически отключается
+      # (см. backend/src/auth.ts — requireEmailVerification зависит от RESEND_API_KEY).
+      - key: RESEND_API_KEY
+        sync: false
+      - key: FROM_EMAIL
+        sync: false
+
+      # ─── Мониторинг ──────────────────────────────────────────────────────
+      - key: SENTRY_DSN
+        sync: false
+      - key: LOG_LEVEL
+        value: info
+
+      # ─── Опциональные интеграции ─────────────────────────────────────────
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRO_PRICE_ID
+        sync: false
+      - key: STRIPE_BUSINESS_PRICE_ID
         sync: false

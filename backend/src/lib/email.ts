@@ -22,23 +22,23 @@ interface SendEmailParams {
  * Универсальный отправитель писем через Resend.
  *
  * Поведение, когда RESEND_API_KEY не задан:
- *   • dev: письмо логируется в консоль (удобно для локальной разработки),
- *   • production: бросается ошибка — нельзя молча терять важные письма.
+ *   • письмо НЕ отправляется, но и ошибки не бросается — в логах warn;
+ *   • это позволяет деплоить бэк без Resend (например, для первого smoke-деплоя
+ *     на Render), а в auth.ts email-верификация автоматически отключается,
+ *     если ключа нет.
+ *
+ * Когда добавите RESEND_API_KEY в env — отправка включается без перезапуска кода
+ * (Resend клиент создаётся лениво при первом вызове).
  */
 export async function sendEmail({ to, subject, html, text }: SendEmailParams) {
   const resend = getResend();
   if (!resend) {
-    if (env.NODE_ENV === "production") {
-      throw new Error(
-        "RESEND_API_KEY not configured — невозможно отправить email в production",
-      );
-    }
     logger.warn(
-      { to, subject },
-      "[email-stub] RESEND_API_KEY не задан, письмо не отправлено (dev only)",
+      { to, subject, env: env.NODE_ENV },
+      "[email-stub] RESEND_API_KEY не задан — письмо не отправлено",
     );
     logger.debug({ html: html.slice(0, 200) }, "[email-stub] preview");
-    return { id: "dev-stub" };
+    return { id: "stub" };
   }
 
   const result = await resend.emails.send({
