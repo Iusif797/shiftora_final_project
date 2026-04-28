@@ -16,12 +16,27 @@ fi
 echo "Installing dependencies..."
 bun install
 
-# Generate Prisma client and push schema if prisma is installed (database-auth skill)
+# Prisma: generate client + apply schema based on environment.
+# Правило проекта (.claude/rules/api-patterns.md):
+#   - dev/preview: `prisma db push` (быстро, без миграций — для итераций)
+#   - production:  `prisma migrate deploy` (только применяет уже созданные миграции)
 if [ -f "prisma/schema.prisma" ]; then
   echo "Generating Prisma client..."
   bunx prisma generate
-  echo "Pushing schema to database..."
-  bunx prisma db push --accept-data-loss
+
+  if [[ "${ENVIRONMENT}" == "production" ]]; then
+    if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations 2>/dev/null)" ]; then
+      echo "Applying production migrations (prisma migrate deploy)..."
+      bunx prisma migrate deploy
+    else
+      echo "WARNING: prisma/migrations is empty — falling back to 'db push'."
+      echo "         Создайте миграцию локально: 'bunx prisma migrate dev --name <name>' и закоммитьте prisma/migrations."
+      bunx prisma db push --accept-data-loss
+    fi
+  else
+    echo "Pushing schema to database (dev mode)..."
+    bunx prisma db push --accept-data-loss
+  fi
 
   # Enable DB viewer (idempotent, safe to call multiple times)
   if [ -n "${VIBECODE_PROJECT_ID:-}" ]; then

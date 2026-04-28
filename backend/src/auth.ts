@@ -3,6 +3,28 @@ import { expo } from "@better-auth/expo";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma";
 import { env } from "./env";
+import { sendEmail, buildVerificationEmail } from "./lib/email";
+import { logger } from "./lib/logger";
+
+// trustedOrigins строится из явного ALLOWED_ORIGIN + dev-схем для Expo / localhost.
+// Хардкод *.railway.app/.fly.dev и т.п. убран — origin приложения должен задаваться
+// через env, а не зашитым списком провайдеров.
+function buildTrustedOrigins(): string[] {
+  const fromEnv = env.ALLOWED_ORIGIN
+    ? env.ALLOWED_ORIGIN.split(",").map((o) => o.trim()).filter(Boolean)
+    : [];
+
+  const devSchemes = [
+    "shiftora://*/*",
+    "exp://*/*",
+    "vibecode://*/*",
+    "http://localhost:*",
+    "http://127.0.0.1:*",
+    "http://192.168.*:*",
+  ];
+
+  return [...fromEnv, ...devSchemes];
+}
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "postgresql" }),
@@ -16,24 +38,29 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
+    minPasswordLength: 10,
+    // В production требуем подтверждение email перед логином,
+    // в dev оставляем выключенным, чтобы было удобно тестировать.
+    requireEmailVerification: env.NODE_ENV === "production",
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      try {
+        const { subject, html, text } = buildVerificationEmail({
+          userName: user.name ?? null,
+          verifyUrl: url,
+        });
+        await sendEmail({ to: user.email, subject, html, text });
+      } catch (err) {
+        // Не валим регистрацию, если письмо не ушло — пользователь сможет запросить повторно.
+        logger.error({ err, email: user.email }, "Failed to send verification email");
+      }
+    },
   },
 
-  trustedOrigins: [
-    "vibecode://*/*",
-    "exp://*/*",
-    "shiftora://*/*",
-    "http://localhost:*",
-    "http://127.0.0.1:*",
-    "http://192.168.*:*",
-    "https://*.railway.app",
-    "https://*.fly.dev",
-    "https://*.onrender.com",
-    "https://*.dev.vibecode.run",
-    "https://*.vibecode.run",
-    "https://*.vibecodeapp.com",
-    "https://*.vibecode.dev",
-    "https://vibecode.dev",
-  ],
+  trustedOrigins: buildTrustedOrigins(),
 
   plugins: [expo()],
 

@@ -6,19 +6,53 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   BETTER_AUTH_SECRET: z.string().min(1, "BETTER_AUTH_SECRET is required"),
   BACKEND_URL: z.string().optional().default("http://localhost:3000"),
+  FRONTEND_URL: z.string().optional().default("http://localhost:8081"),
   ALLOWED_ORIGIN: z.string().optional(),
   SENTRY_DSN: z.string().optional(),
+  LOG_LEVEL: z
+    .enum(["trace", "debug", "info", "warn", "error", "fatal"])
+    .optional(),
   GEMINI_API_KEY: z.string().optional(),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PRO_PRICE_ID: z.string().optional(),
   STRIPE_BUSINESS_PRICE_ID: z.string().optional(),
-  FRONTEND_URL: z.string().optional().default("http://localhost:8081"),
+  RESEND_API_KEY: z.string().optional(),
+  FROM_EMAIL: z.string().optional().default("Shiftora <noreply@example.com>"),
 });
 
 function validateEnv() {
   try {
     const parsed = envSchema.parse(process.env);
+
+    // Production safety checks: переменные опциональны на уровне схемы,
+    // но в production некоторые из них критичны.
+    if (parsed.NODE_ENV === "production") {
+      const warnings: string[] = [];
+      if (!parsed.ALLOWED_ORIGIN) {
+        warnings.push(
+          "ALLOWED_ORIGIN не задан — все cross-origin запросы будут отклонены."
+        );
+      }
+      if (!parsed.SENTRY_DSN) {
+        warnings.push("SENTRY_DSN не задан — ошибки бэкенда не будут трекаться.");
+      }
+      if (!parsed.RESEND_API_KEY) {
+        warnings.push(
+          "RESEND_API_KEY не задан — email-верификация и приглашения работать не будут."
+        );
+      }
+      if (parsed.BETTER_AUTH_SECRET.length < 32) {
+        warnings.push(
+          "BETTER_AUTH_SECRET короче 32 символов — слабый секрет для production."
+        );
+      }
+      if (warnings.length > 0) {
+        console.warn("[env] production warnings:");
+        warnings.forEach((w) => console.warn(`  - ${w}`));
+      }
+    }
+
     console.log("Environment validated successfully");
     return parsed;
   } catch (error) {

@@ -7,7 +7,13 @@
     "dev": "bun run --hot src/index.ts",
     "start": "bun run src/index.ts",
     "studio": "cloud-studio --port 3001 --hostname 0.0.0.0",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "db:generate": "bunx prisma generate",
+    "db:push": "bunx prisma db push",
+    "db:migrate:dev": "bunx prisma migrate dev",
+    "db:migrate:deploy": "bunx prisma migrate deploy",
+    "db:studio": "bunx prisma studio"
   },
   "devDependencies": {
     "@types/bun": "latest",
@@ -20,11 +26,14 @@
     "@hono/node-server": "1.12.0",
     "@hono/zod-validator": "^0.7.6",
     "@prisma/client": "6",
+    "@sentry/bun": "^8.47.0",
     "@vibecodeapp/backend-sdk": "^1.0.1",
     "@vibecodeapp/cloud-studio": "^0.2.4",
     "@vibecodeapp/proxy": "^2.0.3",
     "better-auth": "^1.5.4",
     "hono": "4.6.0",
+    "pino": "^9.5.0",
+    "pino-pretty": "^11.3.0",
     "resend": "^6.9.3",
     "stripe": "^20.4.1",
     "zod": "^4.3.6"

@@ -49,7 +49,11 @@ Backend работает с Supabase (PostgreSQL). Для постоянной �
 curl https://ТВОЙ-RENDER-URL/health
 ```
 
-Ожидаемый ответ: `{"status":"ok","service":"shiftora-api","env":"production"}`
+Ожидаемый ответ: `{"data":{"status":"ok","db":"ok","uptime":<seconds>}}`
+
+Также после деплоя доступна документация:
+- Swagger UI: `https://ТВОЙ-RENDER-URL/api/docs`
+- OpenAPI JSON: `https://ТВОЙ-RENDER-URL/api/openapi.json`
 
 ## В mobile/.env
 

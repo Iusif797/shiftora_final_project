@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import * as Sentry from '@sentry/react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { Stack } from 'expo-router';
@@ -28,7 +29,7 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 2 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
-      retry: 1,
+      retry: 0,
       refetchOnWindowFocus: false,
     },
   },
@@ -61,9 +62,14 @@ function RootLayoutNav() {
   const user = session?.user as AppUser | undefined;
   const needsOnboarding = !!user && !user.restaurantId;
 
+  useEffect(() => {
+    const t = setTimeout(() => SplashScreen.hideAsync(), 600);
+    return () => clearTimeout(t);
+  }, []);
+
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#070711' }}>
+      <View style={{ flex: 1, backgroundColor: '#070711' }} onLayout={() => SplashScreen.hideAsync()}>
         <StatusBar style="light" />
       </View>
     );
