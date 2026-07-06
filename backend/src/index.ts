@@ -21,6 +21,9 @@ import { userRouter } from "./routes/users";
 import { uploadRouter } from "./routes/upload";
 import { invitationRouter } from "./routes/invitations";
 import { billingRouter } from "./routes/billing";
+import { ordersRouter } from "./routes/orders";
+import { tablesRouter } from "./routes/tables";
+import { menuRouter } from "./routes/menu";
 import { docsRouter } from "./routes/docs";
 import { prisma } from "./prisma";
 
@@ -146,6 +149,9 @@ app.route("/api/users", userRouter);
 app.route("/api/upload", uploadRouter);
 app.route("/api/invitations", invitationRouter);
 app.route("/api/billing", billingRouter);
+app.route("/api/orders", ordersRouter);
+app.route("/api/tables", tablesRouter);
+app.route("/api/menu", menuRouter);
 
 // API docs: /api/docs (Swagger UI), /api/openapi.json (raw spec).
 app.route("/api", docsRouter);

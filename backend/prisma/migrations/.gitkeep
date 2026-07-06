@@ -1,9 +1,0 @@
-# Этот файл нужен только для того, чтобы папка migrations попала в git.
-#
-# Перед первым продакшен-деплоем создайте начальную миграцию локально:
-#
-#   cd backend
-#   bunx prisma migrate dev --name init
-#
-# После этого Prisma создаст в этой папке файлы миграций — закоммитьте их.
-# В production применятся через `bunx prisma migrate deploy` (см. Dockerfile / scripts/start).

@@ -149,6 +149,7 @@ model Restaurant {
   timezone    String   @default("UTC")
   latitude    Float?
   longitude   Float?
+  taxRate     Float    @default(0.1)
   ownerId     String   @unique
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -160,6 +161,10 @@ model Restaurant {
   anomalies    Anomaly[]
   invitations  Invitation[]
   subscription Subscription?
+  menuCategories MenuCategory[]
+  menuItems      MenuItem[]
+  tables         RestaurantTable[]
+  orders         Order[]
 }
 
 model Employee {
@@ -301,4 +306,137 @@ model Invitation {
 
   @@index([code])
   @@index([restaurantId])
+}
+
+enum TableStatus {
+  FREE
+  OCCUPIED
+  RESERVED
+}
+
+enum OrderStatus {
+  OPEN
+  PREPARING
+  READY
+  SERVED
+  PAID
+  CANCELLED
+}
+
+enum OrderItemStatus {
+  PENDING
+  PREPARING
+  READY
+  SERVED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  NONE
+  CASH
+  CARD
+  STRIPE
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+}
+
+model MenuCategory {
+  id           String   @id @default(cuid())
+  restaurantId String
+  name         String
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  items      MenuItem[]
+
+  @@index([restaurantId])
+}
+
+model MenuItem {
+  id           String   @id @default(cuid())
+  restaurantId String
+  categoryId   String
+  name         String
+  description  String?
+  price        Float
+  photoUrl     String?
+  isAvailable  Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  category   MenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@index([restaurantId])
+  @@index([categoryId])
+}
+
+model RestaurantTable {
+  id           String      @id @default(cuid())
+  restaurantId String
+  number       Int
+  label        String?
+  capacity     Int         @default(4)
+  status       TableStatus @default(FREE)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  orders     Order[]
+
+  @@unique([restaurantId, number])
+  @@index([restaurantId])
+}
+
+model Order {
+  id                    String        @id @default(cuid())
+  restaurantId          String
+  tableId               String
+  createdById           String
+  status                OrderStatus   @default(OPEN)
+  paymentMethod         PaymentMethod @default(NONE)
+  paymentStatus         PaymentStatus @default(UNPAID)
+  subtotal              Float         @default(0)
+  taxAmount             Float         @default(0)
+  totalAmount           Float         @default(0)
+  stripeCheckoutSession String?
+  notes                 String?
+  paidAt                DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  restaurant Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  table      RestaurantTable @relation(fields: [tableId], references: [id])
+  items      OrderItem[]
+
+  @@index([restaurantId])
+  @@index([tableId])
+  @@index([restaurantId, status])
+}
+
+model OrderItem {
+  id            String          @id @default(cuid())
+  orderId       String
+  menuItemId    String
+  nameSnapshot  String
+  priceSnapshot Float
+  quantity      Int             @default(1)
+  notes         String?
+  status        OrderItemStatus @default(PENDING)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+
+  @@index([orderId])
 }
