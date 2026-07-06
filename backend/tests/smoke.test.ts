@@ -69,8 +69,8 @@ describe("API envelope contract", () => {
     expect((json as { error: { message: string } }).error).toHaveProperty("message");
   });
 
-  it("список ресторанов без сессии: 401", async () => {
-    const { status } = await call("GET", "/api/restaurants");
+  it("ресторан текущего пользователя без сессии: 401", async () => {
+    const { status } = await call("GET", "/api/restaurants/my");
     expect(status).toBe(401);
   });
 });
