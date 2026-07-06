@@ -1,7 +1,7 @@
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { Activity, AlertTriangle, Calendar, LogIn, Plus, Users } from 'lucide-react-native';
+import { Activity, AlertTriangle, Calendar, LayoutGrid, LogIn, Plus, Users } from 'lucide-react-native';
 import { AccentBadge, PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { ErrorState, HighlightCard, MetricCard } from '@/components/cards';
 import { api } from '@/lib/api/api';
@@ -57,6 +57,16 @@ export function OwnerDashboard() {
           </View>
           <View style={{ flex: 1 }}>
             <SecondaryButton
+              label="Floor"
+              icon={LayoutGrid}
+              onPress={() => router.push('/(app)/(tabs)/floor')}
+              accessibilityLabel="Open floor plan"
+            />
+          </View>
+        </View>
+        <View style={{ flexDirection: 'row', gap: spacing.md }}>
+          <View style={{ flex: 1 }}>
+            <SecondaryButton
               label="Schedule"
               icon={Calendar}
               onPress={() => router.push('/(app)/(tabs)/shifts')}
@@ -87,6 +97,8 @@ export function OwnerDashboard() {
           value={analytics?.anomalyCount ?? 0}
           icon={AlertTriangle}
           color={(analytics?.anomalyCount ?? 0) > 0 ? colors.danger.base : colors.success.base}
+          onPress={() => router.push('/(app)/alerts')}
+          testID="owner-alerts-card"
         />
         <MetricCard
           label="Coverage"

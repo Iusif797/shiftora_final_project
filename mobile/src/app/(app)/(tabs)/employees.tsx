@@ -1,21 +1,26 @@
-import { memo, useCallback, useMemo } from 'react';
-import { ActivityIndicator, FlatList, Text, View } from 'react-native';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { Briefcase, Users } from 'lucide-react-native';
+import { Briefcase, UserPlus, Users } from 'lucide-react-native';
+import { router, type Href } from 'expo-router';
 import { AppBackground, ScreenHeader } from '@/components/app-shell';
+import { EmployeeEditModal } from '@/components/employee-edit-modal';
+import { PrimaryButton } from '@/components/buttons';
 import { AccentBadge } from '@/components/buttons';
 import { EmptyState, ErrorState, SurfaceCard } from '@/components/cards';
 import { api } from '@/lib/api/api';
+import { useSession } from '@/lib/auth/use-session';
 import { getColorForId, getInitials } from '@/lib/formatters';
 import { colors, radius, spacing, typography } from '@/theme';
-import type { Employee, PaginatedResponse } from '@/types/app';
+import type { AppUser, Employee, PaginatedResponse } from '@/types/app';
 
 const PAGE_SIZE = 100;
 
-const EmployeeCard = memo(function EmployeeCard({ employee }: { employee: Employee }) {
+const EmployeeCard = memo(function EmployeeCard({ employee, onPress }: { employee: Employee; onPress?: () => void }) {
   const accent = getColorForId(employee.id);
   return (
     <SurfaceCard>
+      <Pressable onPress={onPress} disabled={!onPress}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }} testID={`employee-card-${employee.id}`}>
         <View
           style={{
@@ -49,11 +54,16 @@ const EmployeeCard = memo(function EmployeeCard({ employee }: { employee: Employ
           ) : null}
         </View>
       </View>
+      </Pressable>
     </SurfaceCard>
   );
 });
 
 function EmployeesScreen() {
+  const { data: session } = useSession();
+  const role = (session?.user as AppUser | undefined)?.role ?? 'employee';
+  const canManage = role === 'manager' || role === 'owner';
+  const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['employees'],
     queryFn: () =>
@@ -71,13 +81,20 @@ function EmployeesScreen() {
   const handleRetry = useCallback(() => refetch(), [refetch]);
 
   const renderItem = useCallback(
-    ({ item }: { item: Employee }) => <EmployeeCard employee={item} />,
-    []
+    ({ item }: { item: Employee }) => (
+      <EmployeeCard employee={item} onPress={canManage ? () => setEditEmployee(item) : undefined} />
+    ),
+    [canManage]
   );
   const keyExtractor = useCallback((item: Employee) => item.id, []);
 
   const listHeader = (
-    <View style={{ marginBottom: spacing.md }}>
+    <View style={{ marginBottom: spacing.md, gap: spacing.md }}>
+      {canManage ? (
+        <>
+          <PrimaryButton label="Invite team" icon={UserPlus} onPress={() => router.push('/invitations' as Href)} testID="employees-invite-button" />
+        </>
+      ) : null}
       {isLoading ? (
         <ActivityIndicator color={colors.brand.primary} style={{ marginTop: spacing.xxxl }} testID="employees-loading" />
       ) : null}
@@ -104,15 +121,17 @@ function EmployeesScreen() {
     return (
       <AppBackground>
         <ScreenHeader title="Team" subtitle="0 members" />
-        <View style={{ paddingHorizontal: 20, paddingTop: spacing.xl }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: spacing.xl, gap: spacing.md }}>
+          {canManage ? <PrimaryButton label="Invite team" icon={UserPlus} onPress={() => router.push('/invitations' as Href)} testID="employees-invite-button" /> : null}
           <EmptyState
             icon={Users}
             title="No team members yet"
-            description="Share your restaurant ID from settings to invite your staff."
+            description="Generate an invite code and share it with staff during onboarding."
             color={colors.brand.primary}
             testID="employees-empty"
           />
         </View>
+        <EmployeeEditModal employee={editEmployee} visible={!!editEmployee} onClose={() => setEditEmployee(null)} onUpdated={() => refetch()} />
       </AppBackground>
     );
   }
@@ -131,6 +150,12 @@ function EmployeesScreen() {
         ListFooterComponent={listFooter}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: spacing.md, paddingBottom: 100 }}
         testID="employees-list"
+      />
+      <EmployeeEditModal
+        employee={editEmployee}
+        visible={!!editEmployee}
+        onClose={() => setEditEmployee(null)}
+        onUpdated={() => refetch()}
       />
     </AppBackground>
   );

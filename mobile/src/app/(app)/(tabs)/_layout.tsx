@@ -10,7 +10,7 @@ import Animated, {
   useSharedValue,
   withSequence,
 } from 'react-native-reanimated';
-import { Home, Calendar, Users, BarChart3, UserCircle } from 'lucide-react-native';
+import { Home, Calendar, Users, BarChart3, UserCircle, LayoutGrid } from 'lucide-react-native';
 import { useSession } from '@/lib/auth/use-session';
 import { colors, radius } from '@/theme';
 import type { AppUser } from '@/types/app';
@@ -22,6 +22,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const TAB_ITEMS: { name: string; icon: LucideIcon; label: string; roles?: string[] }[] = [
   { name: 'index', icon: Home, label: 'Home' },
   { name: 'shifts', icon: Calendar, label: 'Schedule' },
+  { name: 'floor', icon: LayoutGrid, label: 'Floor' },
   { name: 'employees', icon: Users, label: 'Team', roles: ['manager', 'owner'] },
   { name: 'analytics', icon: BarChart3, label: 'Analytics', roles: ['owner'] },
   { name: 'profile', icon: UserCircle, label: 'Profile' },
@@ -153,6 +154,7 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" options={{ title: 'Dashboard' }} />
       <Tabs.Screen name="shifts" options={{ title: 'Schedule' }} />
+      <Tabs.Screen name="floor" options={{ title: 'Floor' }} />
       <Tabs.Screen
         name="employees"
         options={{

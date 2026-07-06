@@ -95,9 +95,12 @@ export function ManagerDashboard() {
       </View>
       <View style={{ marginTop: spacing.sm, flexDirection: 'row', gap: spacing.sm }}>
         <MetricCard label="Active staff" value={analytics?.activeEmployeesCount ?? 0} icon={Users} color={colors.brand.gold} />
-        <MetricCard label="Alerts" value={analytics?.anomalyCount ?? 0} icon={AlertTriangle} color={colors.danger.base} />
+        <MetricCard label="Alerts" value={analytics?.anomalyCount ?? 0} icon={AlertTriangle} color={colors.danger.base} onPress={() => router.push('/(app)/alerts')} testID="manager-alerts-card" />
       </View>
 
+      <View style={{ marginBottom: spacing.md }}>
+        <SecondaryButton label="View all alerts" icon={AlertTriangle} onPress={() => router.push('/(app)/alerts')} testID="manager-view-alerts-button" />
+      </View>
       <View style={{ marginTop: spacing.lg, gap: spacing.md }}>
         {(anomalies?.length ?? 0) > 0 ? (
           anomalies?.slice(0, 5).map((anomaly) => {

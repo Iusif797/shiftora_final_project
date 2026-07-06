@@ -3,18 +3,20 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, Text, TextInput, View 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
-import { Calendar, Clock3, Plus, QrCode, Sparkles, X } from 'lucide-react-native';
+import { Calendar, Clock3, Pencil, Plus, QrCode, Sparkles, X } from 'lucide-react-native';
 import { ScreenScroll } from '@/components/app-shell';
+import { ShiftEditModal } from '@/components/shift-edit-modal';
 import { AccentBadge, PrimaryButton } from '@/components/buttons';
 import { EmptyState, SurfaceCard } from '@/components/cards';
 import { api } from '@/lib/api/api';
 import { showError, showSuccess } from '@/lib/toast';
 import { useSession } from '@/lib/auth/use-session';
+import { useHasFeature } from '@/lib/use-subscription';
 import { formatDate, formatTime } from '@/lib/formatters';
 import { colors, radius, spacing, statusAppearance, typography } from '@/theme';
 import type { AppUser, Shift, ShiftAssignment, Employee } from '@/types/app';
 
-function ShiftCard({ shift, onShowQR }: { shift: Shift; onShowQR?: (s: Shift) => void }) {
+function ShiftCard({ shift, onShowQR, onEdit }: { shift: Shift; onShowQR?: (s: Shift) => void; onEdit?: (s: Shift) => void }) {
   const appearance = statusAppearance[shift.status] ?? statusAppearance.SCHEDULED;
   const hasAssignments = (shift.assignments?.length ?? 0) > 0;
 
@@ -28,7 +30,14 @@ function ShiftCard({ shift, onShowQR }: { shift: Shift; onShowQR?: (s: Shift) =>
               {formatDate(shift.startTime)} · {formatTime(shift.startTime)} - {formatTime(shift.endTime)}
             </Text>
           </View>
-          <AccentBadge label={shift.status.toLowerCase()} color={appearance.color} tint={appearance.tint} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            {onEdit ? (
+              <Pressable onPress={() => onEdit(shift)} style={{ padding: spacing.xs }} testID={`edit-shift-${shift.id}`}>
+                <Pencil color={colors.text.secondary} size={16} strokeWidth={2} />
+              </Pressable>
+            ) : null}
+            <AccentBadge label={shift.status.toLowerCase()} color={appearance.color} tint={appearance.tint} />
+          </View>
         </View>
         {shift.notes ? (
           <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: spacing.md }}>
@@ -288,6 +297,8 @@ export default function Shifts() {
   const isManager = role === 'manager' || role === 'owner';
   const [showCreate, setShowCreate] = useState<boolean>(false);
   const [qrShift, setQrShift] = useState<Shift | null>(null);
+  const [editShift, setEditShift] = useState<Shift | null>(null);
+  const canAutoGenerate = useHasFeature('aiShiftGeneration');
   const queryClient = useQueryClient();
 
   const { data: shifts, isLoading } = useQuery({
@@ -335,7 +346,7 @@ export default function Shifts() {
             shifts?.length ? (
               <View style={{ gap: spacing.md, paddingBottom: 0 }}>
                 {shifts.map((shift) => (
-                  <ShiftCard key={shift.id} shift={shift} onShowQR={setQrShift} />
+                  <ShiftCard key={shift.id} shift={shift} onShowQR={setQrShift} onEdit={setEditShift} />
                 ))}
               </View>
             ) : !loading ? (
@@ -366,7 +377,13 @@ export default function Shifts() {
       {isManager ? (
         <View style={{ position: 'absolute', bottom: 130, right: 20, flexDirection: 'row', gap: 12 }}>
           <Pressable
-            onPress={() => generateMutation.mutate()}
+            onPress={() => {
+              if (!canAutoGenerate) {
+                showError('Pro feature', 'Auto-generate schedule requires a Pro plan.');
+                return;
+              }
+              generateMutation.mutate();
+            }}
             disabled={generateMutation.isPending}
             style={{
               width: 56,
@@ -418,6 +435,12 @@ export default function Shifts() {
         employees={employees?.items ?? []}
       />
       <QRModal shift={qrShift} visible={!!qrShift} onClose={() => setQrShift(null)} />
+      <ShiftEditModal
+        shift={editShift}
+        visible={!!editShift}
+        onClose={() => setEditShift(null)}
+        onUpdated={() => queryClient.invalidateQueries({ queryKey: ['shifts'] })}
+      />
     </>
   );
 }

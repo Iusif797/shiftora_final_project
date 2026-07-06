@@ -86,8 +86,8 @@ export default function SignUp() {
       return;
     }
 
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+    if (password.length < 10) {
+      setError('Password must be at least 10 characters');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }

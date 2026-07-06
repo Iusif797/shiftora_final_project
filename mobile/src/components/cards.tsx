@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PrimaryButton } from '@/components/buttons';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
@@ -16,6 +16,8 @@ interface MetricCardProps {
   icon: IconComponent;
   color: string;
   subtitle?: string;
+  onPress?: () => void;
+  testID?: string;
 }
 
 interface EmptyStateProps {
@@ -63,18 +65,9 @@ export function HighlightCard({ children }: CardProps) {
   );
 }
 
-export function MetricCard({ label, value, icon: Icon, color, subtitle }: MetricCardProps) {
+function MetricCardBody({ label, value, icon: Icon, color, subtitle }: Omit<MetricCardProps, 'onPress' | 'testID'>) {
   return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: colors.bg.card,
-        borderRadius: radius.xl,
-        borderWidth: 1,
-        borderColor: colors.border.default,
-        padding: spacing.lg,
-      }}
-    >
+    <>
       <View
         style={{
           width: 36,
@@ -90,11 +83,36 @@ export function MetricCard({ label, value, icon: Icon, color, subtitle }: Metric
       >
         <Icon color={color} size={20} strokeWidth={1.8} />
       </View>
-      <Text style={{ ...typography.h3, color: colors.text.primary }}>{value}</Text>
+      <Text style={{ fontSize: 28, fontWeight: '800', letterSpacing: -0.8, color: colors.text.primary, fontVariant: ['tabular-nums'] }}>{value}</Text>
       <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: 4 }}>{label}</Text>
       {subtitle ? (
         <Text style={{ ...typography.caption, color, marginTop: spacing.xs }}>{subtitle}</Text>
       ) : null}
+    </>
+  );
+}
+
+export function MetricCard({ label, value, icon, color, subtitle, onPress, testID }: MetricCardProps) {
+  const cardStyle = {
+    flex: 1,
+    backgroundColor: colors.bg.card,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    padding: spacing.lg,
+  } as const;
+
+  if (onPress) {
+    return (
+      <Pressable onPress={onPress} testID={testID} accessibilityRole="button" style={cardStyle}>
+        <MetricCardBody label={label} value={value} icon={icon} color={color} subtitle={subtitle} />
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={cardStyle} testID={testID}>
+      <MetricCardBody label={label} value={value} icon={icon} color={color} subtitle={subtitle} />
     </View>
   );
 }

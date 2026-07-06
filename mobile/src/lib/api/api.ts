@@ -19,6 +19,16 @@ export class AuthError extends Error {
   }
 }
 
+export class SubscriptionError extends Error {
+  code: string;
+
+  constructor(message: string, code = "SUBSCRIPTION_REQUIRED") {
+    super(message);
+    this.name = "SubscriptionError";
+    this.code = code;
+  }
+}
+
 const request = async <T>(
   url: string,
   options: { method?: string; body?: string } = {}
@@ -52,6 +62,15 @@ const request = async <T>(
   }
 
   const json = await response.json();
+
+  if (response.status === 402 && json && typeof json === "object" && "error" in json) {
+    const err = json as { error?: { message?: string; code?: string } };
+    router.push("/(app)/billing");
+    throw new SubscriptionError(
+      err.error?.message ?? "Subscription upgrade required",
+      err.error?.code ?? "SUBSCRIPTION_REQUIRED",
+    );
+  }
 
   if (json && typeof json === "object" && "error" in json) {
     const err = json as { error?: { message?: string } };
