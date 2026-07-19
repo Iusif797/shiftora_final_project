@@ -5,8 +5,7 @@ import { Briefcase, UserPlus, Users } from 'lucide-react-native';
 import { router, type Href } from 'expo-router';
 import { AppBackground, ScreenHeader } from '@/components/app-shell';
 import { EmployeeEditModal } from '@/components/employee-edit-modal';
-import { PrimaryButton } from '@/components/buttons';
-import { AccentBadge } from '@/components/buttons';
+import { PrimaryButton, AccentBadge } from '@/components/buttons';
 import { EmptyState, ErrorState, SurfaceCard } from '@/components/cards';
 import { api } from '@/lib/api/api';
 import { useSession } from '@/lib/auth/use-session';
@@ -108,7 +107,7 @@ function EmployeesScreen() {
         <ScreenHeader title="Team" subtitle="0 members" />
         <View style={{ paddingHorizontal: 20, paddingTop: spacing.xl }}>
           <ErrorState
-            message={error instanceof Error ? error.message : 'Не удалось загрузить список сотрудников'}
+            message={error instanceof Error ? error.message : 'Could not load the team'}
             onRetry={handleRetry}
             testID="employees-error"
           />

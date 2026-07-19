@@ -11,6 +11,7 @@ import { env } from "./env";
 import { logger as appLogger } from "./lib/logger";
 import { errorHandler } from "./middleware/error-handler";
 import { rateLimit } from "./middleware/rate-limit";
+import { contentTypeGuard, validationErrorNormalizer } from "./lib/validation";
 import { restaurantRouter } from "./routes/restaurants";
 import { employeeRouter } from "./routes/employees";
 import { shiftRouter } from "./routes/shifts";
@@ -55,22 +56,16 @@ app.use(
   cors({
     origin: (origin) => {
       if (!origin) return origin;
+      if (origin === "shiftora://" || origin.startsWith("shiftora://")) {
+        return origin;
+      }
       if (env.ALLOWED_ORIGIN) {
         const allowed = env.ALLOWED_ORIGIN.split(",").map((o) => o.trim());
         return allowed.includes(origin) ? origin : undefined;
       }
       if (isProduction) {
-        // В production без ALLOWED_ORIGIN cross-origin не разрешаем,
-        // но оставляем localhost для отладки (dev-устройство против prod бэка).
-        if (
-          origin.startsWith("http://localhost:") ||
-          origin.startsWith("http://127.0.0.1:")
-        ) {
-          return origin;
-        }
         return undefined;
       }
-      // dev: эхо origin'а
       return origin;
     },
     credentials: true,
@@ -96,12 +91,15 @@ app.use("*", async (c, next) => {
 });
 
 // ─── Rate limiting ───────────────────────────────────────────────────────────
-app.use("/api/auth/*", rateLimit(20, 60_000));
-app.use("/api/invitations/accept/*", rateLimit(5, 10 * 60 * 1000));
-app.use("/api/*", async (c, next) => {
-  if (c.req.path.startsWith("/api/auth")) return next();
-  return rateLimit(100, 60_000)(c, next);
-});
+app.use("/api/auth/sign-in/*", rateLimit(10, 10 * 60_000, { scope: "auth-sign-in" }));
+app.use("/api/auth/sign-up/*", rateLimit(5, 10 * 60_000, { scope: "auth-sign-up" }));
+app.use(
+  "/api/auth/request-password-reset",
+  rateLimit(5, 10 * 60_000, { scope: "auth-password-reset" }),
+);
+app.use("/api/auth/*", rateLimit(120, 60_000, { scope: "auth-general" }));
+app.use("/api/invitations/accept/*", rateLimit(5, 10 * 60 * 1000, { scope: "invite-accept" }));
+app.use("/api/invitations/verify/*", rateLimit(10, 10 * 60 * 1000, { scope: "invite-verify" }));
 
 // ─── Session middleware ──────────────────────────────────────────────────────
 app.use("*", async (c, next) => {
@@ -115,6 +113,24 @@ app.use("*", async (c, next) => {
   }
   await next();
 });
+
+app.use("/api/*", async (c, next) => {
+  if (c.req.path.startsWith("/api/auth")) return next();
+  return rateLimit(300, 60_000, {
+    scope: "api",
+    identity: (context) => {
+      const user = context.get("user") as { id?: string } | null;
+      return user?.id ? `user:${user.id}` : null;
+    },
+  })(c, next);
+});
+
+// ─── Request guards ──────────────────────────────────────────────────────────
+// contentTypeGuard: state-changing запросы с телом обязаны быть application/json
+//   (защита от CSRF-подобных form-based атак при SameSite=None cookies).
+// validationErrorNormalizer: приводит ошибки zValidator к контракту { error }.
+app.use("/api/*", contentTypeGuard);
+app.use("/api/*", validationErrorNormalizer);
 
 // ─── Health check (для оркестратора) ─────────────────────────────────────────
 app.get("/health", async (c) => {
@@ -154,7 +170,11 @@ app.route("/api/tables", tablesRouter);
 app.route("/api/menu", menuRouter);
 
 // API docs: /api/docs (Swagger UI), /api/openapi.json (raw spec).
-app.route("/api", docsRouter);
+// В production открыты только при явном ENABLE_API_DOCS=true, чтобы не отдавать
+// карту API анонимам.
+if (env.NODE_ENV !== "production" || env.ENABLE_API_DOCS === "true") {
+  app.route("/api", docsRouter);
+}
 
 const port = Number(env.PORT);
 

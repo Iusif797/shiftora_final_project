@@ -1,5 +1,5 @@
 import { type Context } from "hono";
-import { type StatusCode } from "hono/utils/http-status";
+import { type ContentfulStatusCode } from "hono/utils/http-status";
 import { logger } from "../lib/logger";
 import { Sentry } from "../lib/sentry";
 
@@ -23,7 +23,7 @@ export function errorHandler(err: Error, c: Context) {
     );
     return c.json(
       { error: { message: err.message, code: err.code ?? "APP_ERROR" } },
-      err.statusCode as StatusCode,
+      err.statusCode as ContentfulStatusCode,
     );
   }
 

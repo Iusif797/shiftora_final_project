@@ -23,7 +23,7 @@ export function OwnerDashboard() {
         }
       >
         <ErrorState
-          message={error instanceof Error ? error.message : 'Не удалось загрузить данные'}
+          message={error instanceof Error ? error.message : 'Could not load dashboard data'}
           onRetry={() => refetch()}
           testID="owner-dashboard-error"
         />
@@ -43,7 +43,7 @@ export function OwnerDashboard() {
         <PrimaryButton
           label="Create shift"
           icon={Plus}
-          onPress={() => router.push('/(app)/(tabs)/shifts')}
+          onPress={() => router.push({ pathname: '/(app)/(tabs)/shifts', params: { create: String(Date.now()) } })}
           accessibilityLabel="Create new shift"
         />
         <View style={{ flexDirection: 'row', gap: spacing.md }}>
@@ -61,16 +61,6 @@ export function OwnerDashboard() {
               icon={LayoutGrid}
               onPress={() => router.push('/(app)/(tabs)/floor')}
               accessibilityLabel="Open floor plan"
-            />
-          </View>
-        </View>
-        <View style={{ flexDirection: 'row', gap: spacing.md }}>
-          <View style={{ flex: 1 }}>
-            <SecondaryButton
-              label="Schedule"
-              icon={Calendar}
-              onPress={() => router.push('/(app)/(tabs)/shifts')}
-              accessibilityLabel="View schedule"
             />
           </View>
         </View>

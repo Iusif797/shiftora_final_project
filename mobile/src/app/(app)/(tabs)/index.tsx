@@ -1,4 +1,6 @@
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { UserCircle } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppBackground } from '@/components/app-shell';
 import { AccentBadge } from '@/components/buttons';
@@ -35,7 +37,18 @@ export default function Dashboard() {
                 {user?.name?.split(' ')[0] ?? 'Welcome'}
               </Text>
             </View>
-            <AccentBadge label={role} color={roleStyle.color} tint={`${roleStyle.color}18`} />
+            <View style={{ alignItems: 'flex-end', gap: spacing.sm }}>
+              <Pressable
+                onPress={() => router.push('/(app)/(tabs)/profile')}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="Open profile"
+                testID="dashboard-profile-button"
+              >
+                <UserCircle color={colors.text.secondary} size={28} strokeWidth={1.8} />
+              </Pressable>
+              <AccentBadge label={role} color={roleStyle.color} tint={`${roleStyle.color}18`} />
+            </View>
           </View>
         </View>
 

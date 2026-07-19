@@ -35,7 +35,9 @@ export async function getOverview(restaurantId: string) {
     },
   });
   const attendanceRate =
-    totalAssignments > 0 ? Math.round((checkins.length / totalAssignments) * 100) : 0;
+    totalAssignments > 0
+      ? Math.min(100, Math.round((checkins.length / totalAssignments) * 100))
+      : 0;
 
   return {
     totalShiftsThisWeek,
@@ -352,7 +354,7 @@ export async function getInsights(restaurantId: string) {
   const lastMonth = new Date(now);
   lastMonth.setMonth(now.getMonth() - 1);
 
-  const [employees, shifts, checkins, anomalies] = await Promise.all([
+  const [employees, checkins, anomalies] = await Promise.all([
     prisma.employee.findMany({
       where: { restaurantId },
       include: {
@@ -362,9 +364,6 @@ export async function getInsights(restaurantId: string) {
           include: { shift: true },
         },
       },
-    }),
-    prisma.shift.findMany({
-      where: { restaurantId, startTime: { gte: lastMonth } },
     }),
     prisma.checkin.findMany({
       where: { restaurantId, checkinTime: { gte: lastMonth } },
@@ -386,11 +385,12 @@ export async function getInsights(restaurantId: string) {
   }, 0);
 
   const avgHoursPerEmployee = employees.length > 0 ? totalHoursWorked / employees.length : 0;
+  // Единая формула посещаемости (как в getOverview): checkins / назначения,
+  // с ограничением [0..100]. Прежняя магическая * 0.8 давала >100% и расходилась.
+  const totalAssignments = employees.reduce((sum, e) => sum + e.assignments.length, 0);
   const attendanceRate =
-    shifts.length > 0
-      ? Math.round(
-          (checkins.filter((ck) => ck.checkoutTime).length / (shifts.length * 0.8)) * 100
-        )
+    totalAssignments > 0
+      ? Math.min(100, Math.round((checkins.length / totalAssignments) * 100))
       : 0;
 
   const metrics: InsightsMetrics = {

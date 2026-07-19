@@ -6,11 +6,11 @@ interface FormFieldProps {
   label: string;
   value: string;
   onChangeText: (value: string) => void;
-  placeholder: string;
-  focused: boolean;
+  placeholder?: string;
+  focused?: boolean;
   hasError?: boolean;
-  onFocus: () => void;
-  onBlur: () => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   keyboardType?: 'default' | 'email-address' | 'numeric';
   autoCorrect?: boolean;
@@ -26,8 +26,8 @@ export function FormField({
   label,
   value,
   onChangeText,
-  placeholder,
-  focused,
+  placeholder = '',
+  focused = false,
   hasError = false,
   onFocus,
   onBlur,

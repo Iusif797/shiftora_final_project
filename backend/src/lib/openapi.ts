@@ -41,6 +41,7 @@ export function buildOpenApiSpec() {
       { name: "Analytics" },
       { name: "Invitations" },
       { name: "Billing" },
+      { name: "Orders" },
       { name: "Upload" },
     ],
     components: {
@@ -160,10 +161,22 @@ export function buildOpenApiSpec() {
         get: { tags: ["Shifts"], summary: "Смены (с фильтрами)" },
         post: { tags: ["Shifts"], summary: "Создать смену" },
       },
-      "/api/checkins": {
+      "/api/checkins/checkin": {
         post: {
           tags: ["Checkins"],
-          summary: "Чек-ин/чек-аут с геолокацией и фото",
+          summary: "Чек-ин с подписанным QR, геолокацией и фото",
+        },
+      },
+      "/api/checkins/checkout": {
+        post: { tags: ["Checkins"], summary: "Чек-аут активной смены" },
+      },
+      "/api/shifts/{id}/checkin-tokens": {
+        get: {
+          tags: ["Shifts"],
+          summary: "Короткоживущие QR-токены назначений смены (manager/owner)",
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "string" } },
+          ],
         },
       },
       "/api/anomalies": {
@@ -183,6 +196,19 @@ export function buildOpenApiSpec() {
           tags: ["Billing"],
           summary: "Stripe webhook (subscription events)",
           security: [],
+        },
+      },
+      "/api/orders": {
+        get: { tags: ["Orders"], summary: "Заказы ресторана" },
+        post: { tags: ["Orders"], summary: "Создать заказ для свободного стола" },
+      },
+      "/api/orders/{id}/confirm-payment": {
+        post: {
+          tags: ["Orders"],
+          summary: "Подтвердить Stripe Checkout после возврата в приложение",
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "string" } },
+          ],
         },
       },
     },

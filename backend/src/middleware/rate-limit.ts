@@ -1,83 +1,97 @@
 import { type Context, type Next } from "hono";
+import { createHash } from "node:crypto";
 import { env } from "../env";
-import { logger } from "../lib/logger";
+import { prisma } from "../prisma";
 
-/**
- * In-memory rate limiter.
- *
- * ⚠️  ОГРАНИЧЕНИЯ (важно для production):
- *
- *   1. Состояние хранится в памяти процесса — теряется при рестарте/деплое.
- *   2. На нескольких инстансах каждый имеет свой счётчик, поэтому реальный
- *      лимит = N_instances × maxRequests. Защита от brute-force ослабевает.
- *   3. Не работает за CDN / load balancer без правильной передачи x-forwarded-for.
- *
- * Подходит для:
- *   • single-instance деплой (Railway/Render базовый план);
- *   • защита от случайных всплесков (не от целевых атак).
- *
- * TODO перед масштабированием: переехать на Redis (Upstash) или хотя бы
- * хранилище, разделяемое между инстансами (PostgreSQL-таблица с upsert + TTL).
- *
- * См. PRE_LAUNCH_CHECKLIST.md, раздел "Критичные доработки".
- */
+type RateLimitOptions = {
+  scope?: string;
+  identity?: (c: Context) => string | null | undefined;
+};
+const developmentStore = new Map<string, { count: number; resetAt: Date }>();
+let lastDatabaseCleanup = 0;
 
-const store = new Map<string, { count: number; resetAt: number }>();
-
-const CLEANUP_INTERVAL = 60_000;
-let lastCleanup = Date.now();
-let warnedInProduction = false;
-
-function cleanup() {
-  const now = Date.now();
-  if (now - lastCleanup < CLEANUP_INTERVAL) return;
-  lastCleanup = now;
-  for (const [key, value] of store) {
-    if (value.resetAt < now) store.delete(key);
+function consumeDevelopmentBucket(key: string, resetAt: Date) {
+  const current = developmentStore.get(key);
+  if (!current || current.resetAt <= new Date()) {
+    const created = { count: 1, resetAt };
+    developmentStore.set(key, created);
+    return created;
   }
+  current.count += 1;
+  return current;
 }
 
-function warnOnceInProduction() {
-  if (warnedInProduction) return;
-  if (env.NODE_ENV !== "production") return;
-  warnedInProduction = true;
-  logger.warn(
-    {
-      hint: "См. PRE_LAUNCH_CHECKLIST.md — для масштабирования нужен Redis",
-    },
-    "rate-limit: используется in-memory store; не переживает рестарт и не разделяется между инстансами",
+function clientAddress(c: Context): string {
+  if (env.TRUST_PROXY_HEADERS !== "true") return "untrusted-proxy";
+  return (
+    c.req.header("cf-connecting-ip") ??
+    c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ??
+    c.req.header("x-real-ip") ??
+    "unknown"
   );
 }
 
-export function rateLimit(maxRequests: number, windowMs: number) {
+function bucketKey(c: Context, options: RateLimitOptions): string {
+  const identity = options.identity?.(c) ?? clientAddress(c);
+  const routeScope = options.scope ?? new URL(c.req.url).pathname;
+  return createHash("sha256")
+    .update(`${env.BETTER_AUTH_SECRET}:${identity}:${routeScope}`)
+    .digest("hex");
+}
+
+export function rateLimit(
+  maxRequests: number,
+  windowMs: number,
+  options: RateLimitOptions = {},
+) {
   return async (c: Context, next: Next) => {
-    warnOnceInProduction();
-    cleanup();
-
-    const ip =
-      c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ??
-      c.req.header("x-real-ip") ??
-      "unknown";
-    const path = new URL(c.req.url).pathname;
-    const key = `${ip}:${path}`;
-    const now = Date.now();
-
-    const entry = store.get(key);
-    if (!entry || entry.resetAt < now) {
-      store.set(key, { count: 1, resetAt: now + windowMs });
-      await next();
-      return;
+    const key = bucketKey(c, options);
+    const resetAt = new Date(Date.now() + windowMs);
+    let entry: { count: number; resetAt: Date } | undefined;
+    try {
+      const rows = await prisma.$queryRaw<Array<{ count: number; resetAt: Date }>>`
+        INSERT INTO "RateLimitBucket" ("key", "count", "resetAt", "updatedAt")
+        VALUES (${key}, 1, ${resetAt}, NOW())
+        ON CONFLICT ("key") DO UPDATE SET
+          "count" = CASE
+            WHEN "RateLimitBucket"."resetAt" <= NOW() THEN 1
+            ELSE "RateLimitBucket"."count" + 1
+          END,
+          "resetAt" = CASE
+            WHEN "RateLimitBucket"."resetAt" <= NOW() THEN ${resetAt}
+            ELSE "RateLimitBucket"."resetAt"
+          END,
+          "updatedAt" = NOW()
+        RETURNING "count", "resetAt"
+      `;
+      entry = rows[0];
+      if (Date.now() - lastDatabaseCleanup > 60 * 60 * 1000) {
+        lastDatabaseCleanup = Date.now();
+        void prisma.rateLimitBucket
+          .deleteMany({ where: { resetAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } } })
+          .catch(() => {});
+      }
+    } catch (error) {
+      if (env.NODE_ENV === "production") throw error;
+      entry = consumeDevelopmentBucket(key, resetAt);
     }
+    const remaining = Math.max(0, maxRequests - (entry?.count ?? maxRequests));
+    const retryAfter = Math.max(
+      0,
+      Math.ceil(((entry?.resetAt ?? resetAt).getTime() - Date.now()) / 1000),
+    );
+    c.header("RateLimit-Limit", String(maxRequests));
+    c.header("RateLimit-Remaining", String(remaining));
+    c.header("RateLimit-Reset", String(retryAfter));
 
-    entry.count++;
-    if (entry.count > maxRequests) {
-      c.header("Retry-After", String(Math.ceil((entry.resetAt - now) / 1000)));
+    if ((entry?.count ?? 0) > maxRequests) {
+      c.header("Retry-After", String(retryAfter));
       return c.json(
         { error: { message: "Too many requests", code: "RATE_LIMITED" } },
         429,
       );
     }
 
-    await next();
+    return next();
   };
 }

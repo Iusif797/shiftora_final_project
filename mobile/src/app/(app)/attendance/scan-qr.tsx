@@ -13,13 +13,10 @@ import type { Checkin } from '@/types/app';
 
 function parseShiftAssignmentId(data: string): string | null {
   const trimmed = data.trim();
-  if (trimmed.startsWith('shiftora:checkin:')) {
-    return trimmed.slice('shiftora:checkin:'.length) || null;
-  }
-  if (/^[a-z0-9]{20,}$/i.test(trimmed)) {
-    return trimmed;
-  }
-  return null;
+  const parts = trimmed.split(':');
+  return parts.length === 6 && parts.slice(0, 3).join(':') === 'shiftora:checkin:v1'
+    ? parts[3] || null
+    : null;
 }
 
 export default function ScanQR() {

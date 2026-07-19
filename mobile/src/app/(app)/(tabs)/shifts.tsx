@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Image } from 'expo-image';
+import QRCode from 'react-native-qrcode-svg';
 import { Calendar, Clock3, Pencil, Plus, QrCode, Sparkles, X } from 'lucide-react-native';
 import { ScreenScroll } from '@/components/app-shell';
 import { ShiftEditModal } from '@/components/shift-edit-modal';
@@ -56,9 +57,18 @@ function ShiftCard({ shift, onShowQR, onEdit }: { shift: Shift; onShowQR?: (s: S
 }
 
 function QRModal({ shift, visible, onClose }: { shift: Shift | null; visible: boolean; onClose: () => void }) {
+  const { data: tokens, isLoading, isError, refetch } = useQuery({
+    queryKey: ['checkin-tokens', shift?.id],
+    queryFn: () =>
+      api.get<{ assignmentId: string; employeeName: string; token: string; expiresAt: string }[]>(
+        `/api/shifts/${shift!.id}/checkin-tokens`
+      ),
+    enabled: visible && Boolean(shift?.id),
+    staleTime: 8 * 60 * 1000,
+    refetchInterval: visible ? 8 * 60 * 1000 : false,
+  });
+
   if (!shift?.assignments?.length) return null;
-  const baseUrl = 'https://api.qrserver.com/v1/create-qr-code';
-  const encode = (s: string) => encodeURIComponent(s);
 
   return (
     <Modal visible={visible} transparent animationType="fade">
@@ -73,17 +83,22 @@ function QRModal({ shift, visible, onClose }: { shift: Shift | null; visible: bo
           <Text style={{ ...typography.bodySmall, color: colors.text.secondary, marginBottom: spacing.lg }}>{shift.title}</Text>
           <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
             <View style={{ gap: spacing.xl }}>
-              {shift.assignments!.map((a) => {
-                const assignment = a as { id: string; employee?: { user?: { name?: string } } };
-                const payload = `shiftora:checkin:${assignment.id}`;
-                const qrUrl = `${baseUrl}/?size=180x180&data=${encode(payload)}`;
-                return (
-                  <View key={assignment.id} style={{ alignItems: 'center', paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border.subtle }}>
-                    <Text style={{ ...typography.body, color: colors.text.primary, marginBottom: spacing.sm }}>{assignment.employee?.user?.name ?? 'Employee'}</Text>
-                    <Image source={{ uri: qrUrl }} style={{ width: 180, height: 180 }} contentFit="contain" />
+              {isLoading ? <ActivityIndicator color={colors.brand.primary} /> : null}
+              {isError ? (
+                <View style={{ alignItems: 'center', gap: spacing.md }}>
+                  <Text style={{ ...typography.bodySmall, color: colors.danger.base }}>Could not load secure QR codes.</Text>
+                  <PrimaryButton label="Try again" onPress={() => refetch()} />
+                </View>
+              ) : null}
+              {tokens?.map((item) => (
+                <View key={item.assignmentId} style={{ alignItems: 'center', paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border.subtle }}>
+                  <Text style={{ ...typography.body, color: colors.text.primary, marginBottom: spacing.sm }}>{item.employeeName}</Text>
+                  <View style={{ padding: spacing.md, backgroundColor: '#FFFFFF', borderRadius: radius.lg }}>
+                    <QRCode value={item.token} size={180} backgroundColor="#FFFFFF" color="#000000" />
                   </View>
-                );
-              })}
+                  <Text style={{ ...typography.caption, color: colors.text.tertiary, marginTop: spacing.sm }}>Refreshes every 8 minutes</Text>
+                </View>
+              ))}
             </View>
           </ScrollView>
         </Pressable>
@@ -292,6 +307,8 @@ function CreateShiftModal({
 }
 
 export default function Shifts() {
+  const { create } = useLocalSearchParams<{ create?: string }>();
+  const handledCreateParam = useRef<string | undefined>(undefined);
   const { data: session } = useSession();
   const role = (session?.user as AppUser | undefined)?.role ?? 'employee';
   const isManager = role === 'manager' || role === 'owner';
@@ -300,6 +317,13 @@ export default function Shifts() {
   const [editShift, setEditShift] = useState<Shift | null>(null);
   const canAutoGenerate = useHasFeature('aiShiftGeneration');
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (isManager && create && handledCreateParam.current !== create) {
+      handledCreateParam.current = create;
+      setShowCreate(true);
+    }
+  }, [create, isManager]);
 
   const { data: shifts, isLoading } = useQuery({
     queryKey: ['shifts'],

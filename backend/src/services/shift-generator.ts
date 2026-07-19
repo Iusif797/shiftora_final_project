@@ -22,8 +22,15 @@ export async function generateShifts(params: GenerateShiftsParams): Promise<{ cr
       d.setHours(0, 0, 0, 0);
       return d;
     })();
-  const endDate =
+  const MAX_RANGE_MS = 31 * 24 * 60 * 60 * 1000;
+  const requestedEnd =
     params.endDate ?? new Date(startDate.getTime() + 6 * 24 * 60 * 60 * 1000);
+  // Жёсткий предел горизонта генерации: огромный диапазон иначе создаёт десятки
+  // тысяч строк последовательными запросами (DoS / незавершённая генерация).
+  const endDate =
+    requestedEnd.getTime() - startDate.getTime() > MAX_RANGE_MS
+      ? new Date(startDate.getTime() + MAX_RANGE_MS)
+      : requestedEnd;
 
   const [employees, existingShifts, historicalCheckins] = await Promise.all([
     prisma.employee.findMany({

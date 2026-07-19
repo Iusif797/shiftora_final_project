@@ -116,7 +116,7 @@ function AnalyticsScreen() {
 
         {isError ? (
           <ErrorState
-            message={error instanceof Error ? error.message : 'Не удалось загрузить аналитику'}
+            message={error instanceof Error ? error.message : 'Could not load analytics'}
             onRetry={handleRetry}
             testID="analytics-error"
           />

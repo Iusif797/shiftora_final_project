@@ -20,7 +20,7 @@ export function ManagerDashboard() {
 
   const isLoading = loadingAnalytics || loadingAnomalies;
   const isError = errorAnalytics || errorAnomalies;
-  const errorMessage = analyticsError instanceof Error ? analyticsError.message : anomaliesError instanceof Error ? anomaliesError.message : 'Не удалось загрузить данные';
+  const errorMessage = analyticsError instanceof Error ? analyticsError.message : anomaliesError instanceof Error ? anomaliesError.message : 'Could not load dashboard data';
   const onRefresh = () => {
     refetchAnalytics();
     refetchAnomalies();

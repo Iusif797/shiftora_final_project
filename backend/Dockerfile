@@ -1,4 +1,4 @@
-FROM oven/bun:1.2-alpine
+FROM oven/bun:1.3.10-alpine
 
 WORKDIR /app
 
@@ -9,14 +9,8 @@ RUN apk add --no-cache openssl wget
 COPY package.json bun.lock* ./
 COPY prisma ./prisma/
 
-# Установка зависимостей.
-# `--no-frozen-lockfile` явно отключает автоматический frozen mode, который
-# Bun включает в CI/production окружении. Это позволяет регенерировать
-# bun.lock при добавлении новых зависимостей без перекоммита локально.
-# После первого успешного деплоя рекомендуется локально выполнить
-# `bun install`, закоммитить bun.lock и вернуть `--frozen-lockfile`
-# для воспроизводимых сборок.
-RUN bun install --no-frozen-lockfile
+# Reproducible dependency install; the image must match the reviewed lockfile.
+RUN bun install --frozen-lockfile
 
 # Сгенерировать Prisma client под целевую платформу
 RUN bunx prisma generate
@@ -34,9 +28,7 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD wget -q --spider http://localhost:3000/health || exit 1
 
-# Production-старт:
-#   1. Применить миграции если они закоммичены — `prisma migrate deploy`.
-#      Если в prisma/migrations нет поддиректорий миграций — fallback на `db push`,
-#      чтобы первый деплой не падал на проекте без созданной локально миграции.
-#   2. Запустить сервер.
-CMD ["sh", "-c", "if [ -d prisma/migrations ] && [ -n \"$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d 2>/dev/null)\" ]; then echo '[startup] applying prisma migrations...'; bunx prisma migrate deploy; else echo '[startup] no prisma migrations found — running db push'; bunx prisma db push --accept-data-loss; fi && exec bun src/index.ts"]
+USER bun
+
+# Never mutate a production schema with `db push --accept-data-loss`.
+CMD ["sh", "-c", "bunx prisma migrate deploy && exec bun src/index.ts"]

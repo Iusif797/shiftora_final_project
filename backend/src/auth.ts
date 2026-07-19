@@ -1,9 +1,10 @@
 import { betterAuth } from "better-auth";
+import { APIError } from "better-auth/api";
 import { expo } from "@better-auth/expo";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma";
 import { env } from "./env";
-import { sendEmail, buildVerificationEmail } from "./lib/email";
+import { sendEmail, buildPasswordResetEmail, buildVerificationEmail } from "./lib/email";
 import { logger } from "./lib/logger";
 
 // trustedOrigins строится из явного ALLOWED_ORIGIN + dev-схем для Expo / localhost.
@@ -14,16 +15,20 @@ function buildTrustedOrigins(): string[] {
     ? env.ALLOWED_ORIGIN.split(",").map((o) => o.trim()).filter(Boolean)
     : [];
 
-  const devSchemes = [
-    "shiftora://*/*",
-    "exp://*/*",
-    "vibecode://*/*",
+  const appSchemes = ["shiftora://", "shiftora://*", "shiftora://**"];
+  if (env.NODE_ENV === "production") return [...fromEnv, ...appSchemes];
+
+  return [
+    ...fromEnv,
+    ...appSchemes,
+    "exp://",
+    "exp://**",
+    "vibecode://",
+    "vibecode://**",
     "http://localhost:*",
     "http://127.0.0.1:*",
     "http://192.168.*:*",
   ];
-
-  return [...fromEnv, ...devSchemes];
 }
 
 export const auth = betterAuth({
@@ -36,9 +41,39 @@ export const auth = betterAuth({
       restaurantId: { type: "string", input: false },
     },
   },
+  databaseHooks: {
+    session: {
+      create: {
+        before: async (session) => {
+          const employee = await prisma.employee.findUnique({
+            where: { userId: session.userId },
+            select: { isActive: true },
+          });
+          if (employee && !employee.isActive) {
+            throw new APIError("FORBIDDEN", {
+              message: "This workspace account has been deactivated",
+            });
+          }
+          return { data: session };
+        },
+      },
+    },
+  },
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 10,
+    maxPasswordLength: 128,
+    revokeSessionsOnPasswordReset: true,
+    resetPasswordTokenExpiresIn: 60 * 60,
+    sendResetPassword: async ({ user, url }) => {
+      const message = buildPasswordResetEmail({
+        userName: user.name ?? null,
+        resetUrl: url,
+      });
+      void sendEmail({ to: user.email, ...message }).catch((err) => {
+        logger.error({ err, email: user.email }, "Failed to send password reset email");
+      });
+    },
     // Email-верификация включается ТОЛЬКО явным env-флагом EMAIL_VERIFICATION_REQUIRED=true.
     // Это предотвращает ситуацию, когда существующие пользователи (созданные до
     // включения проверки) оказываются заблокированы при логине из-за emailVerified=false.
@@ -68,12 +103,12 @@ export const auth = betterAuth({
   plugins: [expo()],
 
   advanced: {
-    trustedProxyHeaders: true,
-    disableCSRFCheck: true,
+    trustedProxyHeaders: env.TRUST_PROXY_HEADERS === "true",
+    disableCSRFCheck: false,
     defaultCookieAttributes: {
-      sameSite: "none",
-      secure: true,
-      partitioned: true,
+      sameSite: env.NODE_ENV === "production" ? "none" : "lax",
+      secure: env.NODE_ENV === "production",
+      partitioned: false,
     },
   },
 });

@@ -39,30 +39,34 @@ jobs:
           bun-version: latest
       - run: bun install --frozen-lockfile
       - run: bunx prisma generate
-      - run: bunx prisma db push --accept-data-loss
+      - name: Validate production migrations
+        run: bunx prisma migrate deploy
       - name: TypeCheck
         run: bun run typecheck
       - name: Smoke tests
         run: bun test --timeout 15000
 
   mobile-check:
-    name: Mobile (typecheck + lint)
+    name: Mobile (typecheck + lint + web export)
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: mobile
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: 22
-      - run: npm install --legacy-peer-deps
+          bun-version: latest
+      - run: bun install --frozen-lockfile
       - name: TypeCheck
-        run: npx tsc --noEmit
+        run: bun run typecheck
       - name: Lint
         # `expo lint` сам подтянет конфиг eslint-config-expo.
-        run: npm run lint -- --max-warnings 0
-        continue-on-error: true # warning'и пока не блокируют merge
+        run: bun run lint -- --max-warnings 0
+      - name: Export web build
+        env:
+          EXPO_PUBLIC_BACKEND_URL: http://localhost:3000
+        run: bun run build
 
   docker-build:
     name: Docker Build

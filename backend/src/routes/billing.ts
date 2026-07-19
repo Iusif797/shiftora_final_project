@@ -8,6 +8,7 @@ import { env } from "../env";
 import { getAuthUser } from "../middleware/auth";
 import { AppError } from "../middleware/error-handler";
 import { getActivePlan, getSubscription } from "../middleware/subscription";
+import { logger } from "../lib/logger";
 
 const billingRouter = new Hono();
 
@@ -48,6 +49,14 @@ async function ensureStripeCustomer(
   });
 
   return customer.id;
+}
+
+function requireOwner(c: Parameters<typeof getAuthUser>[0]) {
+  const user = getAuthUser(c);
+  if (!user) throw new AppError(401, "Unauthorized", "UNAUTHORIZED");
+  if (user.role !== "owner") throw new AppError(403, "Owner access required", "FORBIDDEN");
+  if (!user.restaurantId) throw new AppError(400, "No restaurant associated", "NO_RESTAURANT");
+  return user as typeof user & { restaurantId: string };
 }
 
 // ─── GET /api/billing/subscription ──────────────────────────────────────────
@@ -117,13 +126,19 @@ billingRouter.post(
       return c.json({ error: { message: "Stripe not configured", code: "STRIPE_NOT_CONFIGURED" } }, 503);
     }
 
-    const user = getAuthUser(c);
-    if (!user) return c.json({ error: { message: "Unauthorized", code: "UNAUTHORIZED" } }, 401);
-    if (!user.restaurantId) {
-      return c.json({ error: { message: "No restaurant associated", code: "NO_RESTAURANT" } }, 400);
-    }
+    const user = requireOwner(c);
 
     const { priceId } = c.req.valid("json");
+
+    // priceId должен совпадать с одной из настроенных цен планов — иначе клиент
+    // мог бы оформить подписку на произвольную цену Stripe-аккаунта.
+    const allowedPriceIds = [env.STRIPE_PRO_PRICE_ID, env.STRIPE_BUSINESS_PRICE_ID].filter(
+      (id): id is string => Boolean(id),
+    );
+    if (!allowedPriceIds.includes(priceId)) {
+      return c.json({ error: { message: "Invalid price", code: "INVALID_PRICE_ID" } }, 400);
+    }
+
     const stripe = getStripe();
 
     const restaurant = await prisma.restaurant.findUnique({
@@ -167,11 +182,7 @@ billingRouter.post("/create-portal-session", async (c) => {
     return c.json({ error: { message: "Stripe not configured", code: "STRIPE_NOT_CONFIGURED" } }, 503);
   }
 
-  const user = getAuthUser(c);
-  if (!user) return c.json({ error: { message: "Unauthorized", code: "UNAUTHORIZED" } }, 401);
-  if (!user.restaurantId) {
-    return c.json({ error: { message: "No restaurant associated", code: "NO_RESTAURANT" } }, 400);
-  }
+  const user = requireOwner(c);
 
   const sub = await prisma.subscription.findUnique({
     where: { restaurantId: user.restaurantId },
@@ -211,15 +222,46 @@ billingRouter.post("/webhook", async (c) => {
   try {
     event = stripe.webhooks.constructEvent(rawBody, signature, env.STRIPE_WEBHOOK_SECRET!);
   } catch (err) {
-    console.error("Webhook signature verification failed:", err);
+    logger.error({ err }, "Webhook signature verification failed");
     return c.json({ error: { message: "Invalid signature", code: "INVALID_SIGNATURE" } }, 400);
   }
 
+  const existingEvent = await prisma.stripeWebhookEvent.findUnique({
+    where: { id: event.id },
+    select: { status: true },
+  });
+  if (existingEvent?.status === "COMPLETED") {
+    return c.json({ data: { received: true, duplicate: true } });
+  }
+
+  await prisma.stripeWebhookEvent.upsert({
+    where: { id: event.id },
+    create: { id: event.id, type: event.type, status: "PROCESSING" },
+    update: {
+      type: event.type,
+      status: "PROCESSING",
+      attempts: { increment: 1 },
+      lastError: null,
+    },
+  });
+
   try {
     await handleStripeEvent(event);
+    await prisma.stripeWebhookEvent.update({
+      where: { id: event.id },
+      data: { status: "COMPLETED", processedAt: new Date(), lastError: null },
+    });
   } catch (err) {
-    console.error(`Failed to handle webhook event ${event.type}:`, err);
-    // Still return 200 so Stripe doesn't retry — log for investigation
+    const message = err instanceof Error ? err.message.slice(0, 2_000) : "Unknown webhook error";
+    await prisma.stripeWebhookEvent.update({
+      where: { id: event.id },
+      data: { status: "FAILED", lastError: message },
+    });
+    logger.error({ err, eventId: event.id, eventType: event.type }, "Failed to handle webhook event");
+    return c.json(
+      { error: { message: "Webhook processing failed", code: "WEBHOOK_PROCESSING_FAILED" } },
+      500,
+    );
   }
 
   return c.json({ data: { received: true } });
@@ -231,6 +273,42 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
+      if (session.mode === "payment") {
+        const orderId = session.metadata?.orderId;
+        const restaurantId = session.metadata?.restaurantId;
+        if (!orderId || !restaurantId || session.payment_status !== "paid") break;
+
+        const order = await prisma.order.findUnique({ where: { id: orderId } });
+        if (
+          !order ||
+          order.restaurantId !== restaurantId ||
+          session.amount_total !== Math.round(order.totalAmount * 100) ||
+          session.currency?.toLowerCase() !== "usd"
+        ) {
+          logger.error({ eventId: event.id, orderId }, "Stripe order payment metadata mismatch");
+          break;
+        }
+
+        await prisma.$transaction(async (tx) => {
+          const paid = await tx.order.updateMany({
+            where: { id: orderId, paymentStatus: "UNPAID" },
+            data: {
+              paymentStatus: "PAID",
+              paymentMethod: "STRIPE",
+              status: "PAID",
+              paidAt: new Date(),
+            },
+          });
+          if (paid.count === 1) {
+            await tx.restaurantTable.update({
+              where: { id: order.tableId },
+              data: { status: "FREE" },
+            });
+          }
+        });
+        break;
+      }
+
       if (session.mode !== "subscription" || !session.subscription) break;
 
       const restaurantId = session.metadata?.restaurantId;

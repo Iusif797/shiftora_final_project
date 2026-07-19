@@ -25,7 +25,7 @@ Shift management platform for restaurants. Manage employee schedules, track atte
 
 ### Prerequisites
 
-- [Bun](https://bun.sh) v1.1+
+- [Bun](https://bun.sh) v1.3.10+
 - [Node.js](https://nodejs.org) v20+
 - [Expo CLI](https://docs.expo.dev/get-started/installation/)
 - PostgreSQL database (or [Neon.tech](https://neon.tech) free tier)
@@ -38,7 +38,7 @@ cp .env.example .env
 # Edit .env with your PostgreSQL DATABASE_URL
 bun install
 bunx prisma generate
-bunx prisma db push
+bunx prisma migrate deploy
 bun run dev
 ```
 
@@ -48,8 +48,8 @@ bun run dev
 cd mobile
 cp .env.example .env
 # Edit .env with your backend URL
-npm install --legacy-peer-deps
-npm start
+bun install --frozen-lockfile
+bun start
 ```
 
 ## Deployment
@@ -153,13 +153,21 @@ shiftora/
 
 Полный чек-лист перед запуском: [`PRE_LAUNCH_CHECKLIST.md`](./PRE_LAUNCH_CHECKLIST.md).
 
-### Known Limitations
+### Security baseline
 
-- **Rate limit — in-memory.** Состояние теряется при рестарте, не разделяется между инстансами. Для продакшена с несколькими репликами или защиты от целевого brute-force — переехать на Redis. См. `backend/src/middleware/rate-limit.ts`.
+- CSRF/origin и JSON content-type проверяются до выполнения изменяющих запросов.
+- Rate limit хранится в PostgreSQL и работает между репликами приложения.
+- Проверки ролей и принадлежности ресторану выполняются на сервере.
+- QR check-in подписан HMAC, ограничен по времени, смене и назначению сотрудника.
+- Stripe webhook идемпотентен; повторные события безопасно распознаются.
+- Загрузки ограничены 10 MB и проверяются одновременно по MIME и сигнатуре файла.
+- `bun audit` для backend и mobile должен завершаться без известных уязвимостей.
 
 ### Environment Variables
 
 Все переменные backend описаны в [`backend/.env.example`](./backend/.env.example) с пояснениями. Валидация выполняется через Zod в `backend/src/env.ts` при старте — приложение упадёт, если обязательные переменные отсутствуют.
+
+Перед первым production-деплоем обязательно прочитайте [`DEPLOY.md`](./DEPLOY.md): существующую БД, ранее созданную через `db push`, нужно сначала безопасно привязать к истории миграций.
 
 ### Observability
 

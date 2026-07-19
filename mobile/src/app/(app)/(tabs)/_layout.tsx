@@ -1,12 +1,11 @@
 import { useCallback } from 'react';
-import { Pressable, View, Text, Platform, StyleSheet } from 'react-native';
-import { Tabs, router } from 'expo-router';
+import { Pressable, View, Platform, StyleSheet } from 'react-native';
+import { Tabs } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
-  interpolateColor,
   useSharedValue,
   withSequence,
 } from 'react-native-reanimated';
@@ -25,7 +24,7 @@ const TAB_ITEMS: { name: string; icon: LucideIcon; label: string; roles?: string
   { name: 'floor', icon: LayoutGrid, label: 'Floor' },
   { name: 'employees', icon: Users, label: 'Team', roles: ['manager', 'owner'] },
   { name: 'analytics', icon: BarChart3, label: 'Analytics', roles: ['owner'] },
-  { name: 'profile', icon: UserCircle, label: 'Profile' },
+  { name: 'profile', icon: UserCircle, label: 'Profile', roles: ['manager', 'employee'] },
 ];
 
 function TabButton({
@@ -169,7 +168,7 @@ export default function TabsLayout() {
           href: role === 'owner' ? undefined : null,
         }}
       />
-      <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
+      <Tabs.Screen name="profile" options={{ title: 'Profile', href: role === 'owner' ? null : undefined }} />
     </Tabs>
   );
 }
@@ -216,7 +215,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tabLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '600',
     letterSpacing: 0.3,
   },

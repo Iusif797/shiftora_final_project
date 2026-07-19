@@ -28,9 +28,8 @@ export default function SignUp() {
   const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 
   const finishAuth = async () => {
-    const nextPath = await resolvePostAuthPath();
-
     await invalidateSession();
+    const nextPath = await resolvePostAuthPath();
 
     if (!nextPath) {
       setError('Unable to start your session. Try again.');
@@ -39,7 +38,7 @@ export default function SignUp() {
     }
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.replace(nextPath);
+    router.replace('/');
   };
 
   const signUpMutation = useMutation({
@@ -261,6 +260,12 @@ export default function SignUp() {
                   testID="sign-up-button"
                 />
               </View>
+              <Text style={{ ...typography.caption, color: colors.text.tertiary, textAlign: 'center', marginTop: spacing.lg }}>
+                By creating an account, you agree to the{' '}
+                <Text onPress={() => router.push('/terms')} style={{ color: colors.text.primary, textDecorationLine: 'underline' }}>Terms</Text>
+                {' '}and acknowledge the{' '}
+                <Text onPress={() => router.push('/privacy')} style={{ color: colors.text.primary, textDecorationLine: 'underline' }}>Privacy Policy</Text>.
+              </Text>
             </GlassPanel>
 
             <View style={{ marginTop: spacing.xl, alignItems: 'center', gap: spacing.sm }}>

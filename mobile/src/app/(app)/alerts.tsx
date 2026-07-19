@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
-import { AlertTriangle } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { AlertTriangle, X } from 'lucide-react-native';
 import { ScreenScroll } from '@/components/app-shell';
 import { AccentBadge, SecondaryButton } from '@/components/buttons';
 import { EmptyState, SurfaceCard } from '@/components/cards';
@@ -34,7 +35,16 @@ export default function Alerts() {
   });
 
   return (
-    <ScreenScroll title="Alerts" subtitle="Late arrivals, missed shifts, and staffing anomalies" testID="alerts-screen">
+    <ScreenScroll
+      title="Alerts"
+      subtitle="Late arrivals, missed shifts, and staffing anomalies"
+      leftSlot={
+        <Pressable onPress={() => router.back()} testID="alerts-back" hitSlop={12} style={{ padding: 4 }}>
+          <X color={colors.text.secondary} size={22} strokeWidth={2} />
+        </Pressable>
+      }
+      testID="alerts-screen"
+    >
       {isLoading ? <ActivityIndicator color={colors.brand.primary} style={{ marginTop: spacing.xxxl }} /> : null}
 
       {anomalies?.length ? (

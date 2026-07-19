@@ -21,6 +21,8 @@ services:
       # CSV: https://app.shiftora.app,https://shiftora.app
       - key: ALLOWED_ORIGIN
         sync: false
+      - key: TRUST_PROXY_HEADERS
+        value: "true"
 
       # ─── Email (Resend) ──────────────────────────────────────────────────
       # Без ключа email-верификация автоматически отключается

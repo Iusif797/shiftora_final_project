@@ -26,9 +26,8 @@ export default function SignIn() {
   const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 
   const finishAuth = async () => {
-    const nextPath = await resolvePostAuthPath();
-
     await invalidateSession();
+    const nextPath = await resolvePostAuthPath();
 
     if (!nextPath) {
       setError('Unable to start your session. Try again.');
@@ -37,7 +36,7 @@ export default function SignIn() {
     }
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.replace(nextPath);
+    router.replace('/');
   };
 
   const signInMutation = useMutation({
@@ -175,6 +174,9 @@ export default function SignIn() {
                   onSubmitEditing={handleSignIn}
                   testID="password-input"
                 />
+                <Pressable onPress={() => router.push('/forgot-password')} testID="forgot-password-link" accessibilityRole="link">
+                  <Text style={{ ...typography.bodySmall, color: colors.brand.primaryLight, textAlign: 'right' }}>Forgot password?</Text>
+                </Pressable>
               </View>
 
               {error ? (

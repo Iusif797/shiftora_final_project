@@ -4,6 +4,15 @@ import { type AuthContext, assertRestaurantAccess, getAuthUser } from "../middle
 
 const router = new Hono<AuthContext>();
 
+router.use("*", async (c, next) => {
+  const user = getAuthUser(c);
+  if (!user) return c.json({ error: { message: "Unauthorized", code: "UNAUTHORIZED" } }, 401);
+  if (!["manager", "owner"].includes(user.role)) {
+    return c.json({ error: { message: "Forbidden", code: "FORBIDDEN" } }, 403);
+  }
+  return next();
+});
+
 router.get("/", async (c) => {
   const user = getAuthUser(c);
   if (!user) return c.json({ error: { message: "Unauthorized" } }, 401);
@@ -17,7 +26,11 @@ router.get("/", async (c) => {
       ...(isResolved !== undefined ? { isResolved: isResolved === "true" } : { isResolved: false }),
     },
     include: {
-      employee: { include: { user: true } },
+      employee: {
+        include: {
+          user: { select: { id: true, name: true, email: true, image: true, role: true, restaurantId: true } },
+        },
+      },
       shiftAssignment: { include: { shift: true } },
     },
     orderBy: { detectedAt: "desc" },

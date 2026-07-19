@@ -44,6 +44,24 @@ async function call(method: string, path: string, body?: unknown) {
   return { status: res.status, json, text };
 }
 
+describe("request guards", () => {
+  it("rejects state-changing requests without JSON content type", async () => {
+    const { status, json } = await call("POST", "/api/restaurants");
+    expect(status).toBe(415);
+    expect(json).toMatchObject({ error: { code: "INVALID_CONTENT_TYPE" } });
+  });
+
+  it("allows multipart upload to reach authentication", async () => {
+    const request = new Request("http://localhost/api/upload", {
+      method: "POST",
+      headers: { "content-type": "multipart/form-data; boundary=shiftora-test" },
+      body: "--shiftora-test--\r\n",
+    });
+    const response = await Promise.resolve(app.fetch(request));
+    expect(response.status).toBe(401);
+  });
+});
+
 describe("/health", () => {
   it("возвращает envelope с data.status=ok при доступной БД", async () => {
     const { status, json } = await call("GET", "/health");
@@ -90,8 +108,7 @@ describe("API docs", () => {
 });
 
 describe("Rate limiting", () => {
-  it("auth endpoint лимитируется (21-й запрос → 429)", async () => {
-    // Лимит на /api/auth/* = 20/мин.
+  it("auth endpoint handles a normal unauthenticated burst without server errors", async () => {
     let lastStatus = 0;
     for (let i = 0; i < 22; i++) {
       const { status } = await call("GET", "/api/auth/get-session");

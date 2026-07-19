@@ -15,6 +15,9 @@ export interface Restaurant {
   address?: string | null;
   phone?: string | null;
   timezone?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  taxRate?: number;
   ownerId: string;
 }
 

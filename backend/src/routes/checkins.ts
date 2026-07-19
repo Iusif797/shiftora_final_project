@@ -1,19 +1,40 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
 import { sendPushNotification } from "../services/notifications";
 import { type AuthContext, getAuthUser } from "../middleware/auth";
+import { AppError } from "../middleware/error-handler";
+import { verifyCheckinToken } from "../lib/checkin-token";
 
 const router = new Hono<AuthContext>();
 
+const GEOFENCE_RADIUS_M = 500;
+
+function haversineMeters(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
+  const R = 6_371_000;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
 const checkinSchema = z.object({
   shiftAssignmentId: z.string().min(1, "shiftAssignmentId required"),
-  notes: z.string().optional(),
-  latitude: z.coerce.number().optional(),
-  longitude: z.coerce.number().optional(),
-  photoUrl: z.string().optional(),
-  qrPayload: z.string().optional(),
+  notes: z.string().max(500).optional(),
+  latitude: z.coerce.number().min(-90).max(90).optional(),
+  longitude: z.coerce.number().min(-180).max(180).optional(),
+  photoUrl: z.string().url().max(2_000).optional(),
+  qrPayload: z.string().max(1_000).optional(),
 });
 
 const checkoutSchema = z.object({
@@ -38,33 +59,137 @@ router.post("/checkin", zValidator("json", checkinSchema), async (c) => {
   const employee = await prisma.employee.findUnique({
     where: { userId: user.id },
   });
-  if (!employee || employee.id !== assignment.employeeId) {
+  if (!employee || !employee.isActive || employee.id !== assignment.employeeId) {
     return c.json({ error: { message: "Not assigned to this shift" } }, 403);
   }
 
-  const existingCheckin = await prisma.checkin.findFirst({
-    where: { shiftAssignmentId, checkoutTime: null },
-  });
-  if (existingCheckin) return c.json({ data: existingCheckin });
+  if (!["ASSIGNED", "CONFIRMED"].includes(assignment.status)) {
+    return c.json(
+      { error: { message: "This assignment cannot be checked in", code: "INVALID_ASSIGNMENT_STATE" } },
+      409,
+    );
+  }
+  if (!["SCHEDULED", "ACTIVE"].includes(assignment.shift.status)) {
+    return c.json(
+      { error: { message: "This shift is not open for check-in", code: "INVALID_SHIFT_STATE" } },
+      409,
+    );
+  }
 
-  const checkin = await prisma.checkin.create({
-    data: {
-      shiftAssignmentId,
-      employeeId: assignment.employeeId,
-      restaurantId: assignment.shift.restaurantId,
-      checkinTime: new Date(),
-      notes: notes ?? null,
-      latitude: latitude ?? null,
-      longitude: longitude ?? null,
-      photoUrl: (photoUrl && photoUrl !== "" ? photoUrl : null) ?? null,
-      qrPayload: qrPayload ?? null,
-    },
-  });
+  const now = new Date();
+  const earliestCheckin = new Date(assignment.shift.startTime.getTime() - 60 * 60 * 1000);
+  if (now < earliestCheckin || now > assignment.shift.endTime) {
+    return c.json(
+      {
+        error: {
+          message: "Check-in is only available from 60 minutes before the shift until it ends",
+          code: "OUTSIDE_CHECKIN_WINDOW",
+        },
+      },
+      409,
+    );
+  }
 
-  await prisma.shiftAssignment.update({
-    where: { id: shiftAssignmentId },
-    data: { status: "CONFIRMED" },
+  if (qrPayload) {
+    const verified = verifyCheckinToken(qrPayload);
+    if (!verified || verified.assignmentId !== shiftAssignmentId) {
+      return c.json(
+        { error: { message: "Invalid or expired check-in QR", code: "INVALID_QR" } },
+        403,
+      );
+    }
+  }
+
+  if (photoUrl) {
+    const asset = await prisma.asset.findFirst({
+      where: { userId: user.id, url: photoUrl },
+      select: { id: true },
+    });
+    if (!asset) {
+      return c.json(
+        { error: { message: "Photo does not belong to this account", code: "INVALID_PHOTO" } },
+        400,
+      );
+    }
+  }
+
+  // Геофенс (опционально): если у ресторана заданы координаты и клиент прислал
+  // свои — проверяем, что отметка сделана в пределах радиуса. Защита от
+  // отметок «из дома». Без координат ресторана или клиента проверка пропускается.
+  const restaurant = await prisma.restaurant.findUnique({
+    where: { id: assignment.shift.restaurantId },
+    select: { latitude: true, longitude: true },
   });
+  if (restaurant?.latitude != null && restaurant?.longitude != null) {
+    if (latitude == null || longitude == null) {
+      return c.json(
+        { error: { message: "Location is required for check-in", code: "LOCATION_REQUIRED" } },
+        400,
+      );
+    }
+    const distance = haversineMeters(
+      latitude,
+      longitude,
+      restaurant.latitude,
+      restaurant.longitude,
+    );
+    if (distance > GEOFENCE_RADIUS_M) {
+      return c.json(
+        {
+          error: {
+            message: "You are too far from the restaurant to check in",
+            code: "OUTSIDE_GEOFENCE",
+          },
+        },
+        403,
+      );
+    }
+  }
+
+  const existingCheckin = await prisma.checkin.findUnique({
+    where: { shiftAssignmentId },
+  });
+  if (existingCheckin) {
+    if (!existingCheckin.checkoutTime) return c.json({ data: existingCheckin });
+    return c.json(
+      { error: { message: "This assignment was already completed", code: "ALREADY_CHECKED_IN" } },
+      409,
+    );
+  }
+
+  let checkin;
+  try {
+    checkin = await prisma.$transaction(async (tx) => {
+      const created = await tx.checkin.create({
+        data: {
+          shiftAssignmentId,
+          employeeId: assignment.employeeId,
+          restaurantId: assignment.shift.restaurantId,
+          checkinTime: now,
+          notes: notes ?? null,
+          latitude: latitude ?? null,
+          longitude: longitude ?? null,
+          photoUrl: photoUrl ?? null,
+          qrPayload: qrPayload ?? null,
+        },
+      });
+      await tx.shiftAssignment.update({
+        where: { id: shiftAssignmentId },
+        data: { status: "CONFIRMED" },
+      });
+      return created;
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const duplicate = await prisma.checkin.findUnique({ where: { shiftAssignmentId } });
+      if (duplicate && !duplicate.checkoutTime) return c.json({ data: duplicate });
+      return c.json(
+        { error: { message: "This assignment was already checked in", code: "ALREADY_CHECKED_IN" } },
+        409,
+      );
+    }
+    throw error;
+  }
 
   const lateThresholdMs = 15 * 60 * 1000;
   const shiftStart = new Date(assignment.shift.startTime);
@@ -111,17 +236,19 @@ router.post("/checkout", zValidator("json", checkoutSchema), async (c) => {
     return c.json({ error: { message: "Not your checkin" } }, 403);
   }
 
-  const updated = await prisma.checkin.update({
-    where: { id: checkinId },
-    data: {
-      checkoutTime: new Date(),
-      notes: notes ?? checkin.notes,
-    },
-  });
-
-  await prisma.shiftAssignment.update({
-    where: { id: checkin.shiftAssignmentId },
-    data: { status: "COMPLETED" },
+  const updated = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.checkin.updateMany({
+      where: { id: checkinId, checkoutTime: null },
+      data: { checkoutTime: new Date(), notes: notes ?? checkin.notes },
+    });
+    if (claimed.count !== 1) {
+      throw new AppError(409, "Already checked out", "ALREADY_CHECKED_OUT");
+    }
+    await tx.shiftAssignment.update({
+      where: { id: checkin.shiftAssignmentId },
+      data: { status: "COMPLETED" },
+    });
+    return tx.checkin.findUniqueOrThrow({ where: { id: checkinId } });
   });
 
   return c.json({ data: updated });

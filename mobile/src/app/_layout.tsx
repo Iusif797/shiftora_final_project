@@ -90,6 +90,7 @@ function RootLayoutNav() {
           animation: 'fade',
         }}
       >
+        <Stack.Screen name="index" />
         <Stack.Protected guard={!!user && !needsOnboarding}>
           <Stack.Screen name="(app)" />
         </Stack.Protected>
@@ -101,6 +102,10 @@ function RootLayoutNav() {
           <Stack.Screen name="sign-in" />
           <Stack.Screen name="sign-up" />
         </Stack.Protected>
+        <Stack.Screen name="forgot-password" />
+        <Stack.Screen name="reset-password" />
+        <Stack.Screen name="privacy" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="terms" options={{ presentation: 'modal' }} />
       </Stack>
     </View>
   );

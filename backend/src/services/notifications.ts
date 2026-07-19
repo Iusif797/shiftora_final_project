@@ -1,3 +1,5 @@
+import { logger } from "../lib/logger";
+
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 500;
@@ -16,7 +18,7 @@ export async function sendPushNotification(
   body: string
 ): Promise<void> {
   if (!isValidExpoToken(pushToken)) {
-    console.error(`[Push] Invalid token format: ${pushToken}`);
+    logger.warn({ token: pushToken.slice(0, 30) }, "[Push] Invalid token format");
     return;
   }
 
@@ -52,8 +54,9 @@ export async function sendPushNotification(
 
       if (!isLastAttempt) {
         const delay = RETRY_BASE_MS * 2 ** (attempt - 1); // 500ms, 1s, 2s
-        console.warn(
-          `[Push] Attempt ${attempt}/${MAX_RETRIES} failed, retrying in ${delay}ms. Reason: ${lastError.message}`
+        logger.warn(
+          { attempt, maxRetries: MAX_RETRIES, delay, reason: lastError.message },
+          "[Push] attempt failed, retrying",
         );
         await sleep(delay);
       }
@@ -61,7 +64,8 @@ export async function sendPushNotification(
   }
 
   // All retries exhausted — log so Sentry/Render picks it up
-  console.error(
-    `[Push] Failed to deliver notification after ${MAX_RETRIES} attempts. Token: ${pushToken.slice(0, 30)}... Error: ${lastError?.message}`
+  logger.error(
+    { token: pushToken.slice(0, 30), maxRetries: MAX_RETRIES, error: lastError?.message },
+    "[Push] Failed to deliver notification after retries",
   );
 }

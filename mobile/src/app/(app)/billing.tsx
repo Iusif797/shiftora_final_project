@@ -190,7 +190,6 @@ function StatusBanner() {
 
   if (!sub || sub.plan === 'free') return null;
 
-  const visual = PLAN_VISUAL[sub.plan];
   const isPastDue = sub.status === 'past_due';
   const isTrialing = sub.status === 'trialing';
   const isCanceling = sub.cancelAtPeriodEnd;
@@ -214,9 +213,9 @@ function StatusBanner() {
       <Text style={[styles.statusBannerText, {
         color: isPastDue ? colors.danger.base : isTrialing ? colors.info.base : colors.warning.base
       }]}>
-        {isPastDue && 'Платёж не прошёл — обновите способ оплаты'}
-        {isTrialing && sub.trialEnd && `Пробный период до ${format(new Date(sub.trialEnd), 'd MMM yyyy')}`}
-        {isCanceling && sub.currentPeriodEnd && `Отмена подписки ${format(new Date(sub.currentPeriodEnd), 'd MMM yyyy')}`}
+        {isPastDue ? 'Платёж не прошёл — обновите способ оплаты' : null}
+        {isTrialing && sub.trialEnd ? `Пробный период до ${format(new Date(sub.trialEnd), 'd MMM yyyy')}` : null}
+        {isCanceling && sub.currentPeriodEnd ? `Отмена подписки ${format(new Date(sub.currentPeriodEnd), 'd MMM yyyy')}` : null}
       </Text>
       <Pressable
         onPress={() => manageBilling.mutate()}

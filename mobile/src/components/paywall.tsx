@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Lock, Zap, Star, Building2 } from 'lucide-react-native';
+import { Lock, Zap, Building2 } from 'lucide-react-native';
 import { colors, radius, spacing, shadows, typography } from '@/theme';
 import type { PlanTier } from '@/types/app';
 

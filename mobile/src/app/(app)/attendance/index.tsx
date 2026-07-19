@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, Clock3, LogIn, LogOut } from 'lucide-react-native';
+import { Camera, ChevronLeft, Clock3, LogIn, LogOut } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { ScreenScroll } from '@/components/app-shell';
 import { AccentBadge, PrimaryButton, SecondaryButton } from '@/components/buttons';
@@ -103,7 +103,8 @@ export default function Attendance() {
 
   const nextShift = upcoming?.[0];
   const canCheckIn = nextShift?.shift
-    ? Math.abs(new Date(nextShift.shift.startTime).getTime() - Date.now()) <= 60 * 60 * 1000
+    ? Date.now() >= new Date(nextShift.shift.startTime).getTime() - 60 * 60 * 1000 &&
+      Date.now() <= new Date(nextShift.shift.endTime).getTime()
     : false;
 
   const onRetry = () => {
@@ -112,7 +113,16 @@ export default function Attendance() {
   };
 
   return (
-    <ScreenScroll title="Attendance" subtitle="Check in, check out, and review shift history" testID="attendance-screen">
+    <ScreenScroll
+      title="Attendance"
+      subtitle="Check in, check out, and review shift history"
+      leftSlot={
+        <Pressable onPress={() => router.back()} testID="attendance-back" hitSlop={12} style={{ padding: 4 }}>
+          <ChevronLeft color={colors.text.primary} size={24} strokeWidth={2} />
+        </Pressable>
+      }
+      testID="attendance-screen"
+    >
       {loadingActive || loadingHistory ? (
         <ActivityIndicator color={colors.brand.primary} style={{ marginTop: spacing.xxxl }} />
       ) : null}
@@ -124,7 +134,7 @@ export default function Attendance() {
               ? errorActiveObj.message
               : errorHistoryObj instanceof Error
                 ? errorHistoryObj.message
-                : 'Не удалось загрузить данные'
+                : 'Could not load attendance data'
           }
           onRetry={onRetry}
           testID="attendance-error"

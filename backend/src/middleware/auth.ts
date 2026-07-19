@@ -52,6 +52,6 @@ export function requireRole(c: Context, roles: string[]): SessionUser | null {
 
 export function assertRestaurantAccess(user: SessionUser, resourceRestaurantId: string): void {
   if (user.restaurantId !== resourceRestaurantId) {
-    throw new AppError(403, "Нет доступа", "FORBIDDEN");
+    throw new AppError(403, "Forbidden", "FORBIDDEN");
   }
 }

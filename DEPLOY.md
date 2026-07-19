@@ -1,66 +1,97 @@
-# Деплой Backend на Render
+# Production deployment
 
-Backend работает с Supabase (PostgreSQL). Для постоянной работы задеплой на Render.
+Shiftora backend deploys as a Docker service and uses PostgreSQL. The container runs `prisma migrate deploy` before starting the API. It never uses `db push` or `--accept-data-loss` in production.
 
-## Шаг 1: Регистрация
+## 1. Infrastructure
 
-1. Зайди на [render.com](https://render.com)
-2. Войди через GitHub
+- Managed PostgreSQL with automated backups and point-in-time recovery where available.
+- Docker host such as Render, Railway or Fly.io.
+- A production API hostname with HTTPS.
+- Resend account and a verified sender domain.
+- Stripe webhook endpoint if billing or POS card payments are enabled.
+- Sentry DSN and external uptime monitoring are strongly recommended.
 
-## Шаг 2: Создание сервиса
+Create a manual database snapshot immediately before every production migration.
 
-1. **New +** → **Web Service**
-2. Подключи репозиторий `shiftora_final_project`
-3. Или **New +** → **Blueprint** — Render подхватит `render.yaml` из репозитория
+## 2. Required environment
 
-### Если создаёшь вручную (без Blueprint)
+Start from `backend/.env.example`. Production validation deliberately stops startup if security-critical values are missing.
 
-| Поле | Значение |
-|------|----------|
-| Name | `shiftora-backend` |
-| Region | Frankfurt или Oregon |
-| Branch | `main` |
-| Root Directory | `backend` |
-| Runtime | `Docker` |
+```dotenv
+NODE_ENV=production
+DATABASE_URL=postgresql://...
+BETTER_AUTH_SECRET=<at-least-32-random-characters>
+BACKEND_URL=https://api.example.com
+FRONTEND_URL=https://app.example.com
+ALLOWED_ORIGIN=https://app.example.com
+TRUST_PROXY_HEADERS=true
+RESEND_API_KEY=re_...
+FROM_EMAIL=Shiftora <no-reply@example.com>
+```
 
-## Шаг 3: Переменные окружения
+`ALLOWED_ORIGIN` accepts a comma-separated list of exact HTTPS origins; do not add wildcards. Set `TRUST_PROXY_HEADERS=true` only behind a trusted proxy that replaces forwarded headers. Add Stripe, storage, Gemini and Sentry variables from the example only for the features you enable.
 
-В **Environment** добавь:
+API documentation is disabled in production by default. Temporarily set `ENABLE_API_DOCS=true` only when it is actually needed.
 
-| Переменная | Значение |
-|------------|----------|
-| `DATABASE_URL` | Строка Supabase (Supabase → Settings → Database) |
-| `BETTER_AUTH_SECRET` | Секрет 32+ символов (`openssl rand -hex 32`) |
-| `BACKEND_URL` | Оставь пустым — заполнишь после деплоя |
-| `NODE_ENV` | `production` |
-| `GEMINI_API_KEY` | (опционально) Ключ из [Google AI Studio](https://aistudio.google.com/apikey) для AI-инсайтов в аналитике |
+## 3. Database migrations
 
-**Важно:** пароль в `DATABASE_URL` с спецсимволами — в URL-кодировке (`/` → `%2F`, `$` → `%24`, `?` → `%3F`).
+### Fresh database
 
-## Шаг 4: BACKEND_URL после деплоя
-
-1. После первого деплоя Render выдаст URL вида `https://shiftora-backend.onrender.com`
-2. В **Environment** добавь `BACKEND_URL` = этот URL
-3. **Manual Deploy** → **Deploy latest commit**
-
-## Шаг 5: Проверка
+No manual preparation is required:
 
 ```bash
-curl https://ТВОЙ-RENDER-URL/health
+cd backend
+bun install --frozen-lockfile
+bunx prisma migrate deploy
 ```
 
-Ожидаемый ответ: `{"data":{"status":"ok","db":"ok","uptime":<seconds>}}`
+### Existing database previously created with `prisma db push`
 
-Также после деплоя доступна документация:
-- Swagger UI: `https://ТВОЙ-RENDER-URL/api/docs`
-- OpenAPI JSON: `https://ТВОЙ-RENDER-URL/api/openapi.json`
+Do not run `migrate deploy` blindly: Prisma will see existing tables but no applied migration history.
 
-## В mobile/.env
+1. Create and verify a backup.
+2. Compare the live schema with `backend/prisma/schema.prisma` and confirm that the `init` and `pos` structures already exist.
+3. Resolve only migrations whose SQL is already represented in the live schema:
 
+```bash
+cd backend
+bunx prisma migrate resolve --applied 20260428120000_init
+bunx prisma migrate resolve --applied 20260428150000_pos
+bunx prisma migrate deploy
 ```
-EXPO_PUBLIC_BACKEND_URL=https://ТВОЙ-RENDER-URL
+
+The hardening migration performs preflight checks and refuses to add unique constraints if duplicate assignments, check-ins or active table orders already exist. Correct that data deliberately, then rerun the migration. Never mark the hardening migration as applied unless its SQL was actually executed.
+
+## 4. Deploy and verify
+
+Build the image from `backend/Dockerfile`, inject environment variables through the host's secret manager, then verify:
+
+```bash
+curl --fail https://api.example.com/health
 ```
 
-## Стоимость
+Expected shape:
 
-Render даёт бесплатный тариф. Сервис может «засыпать» после 15 минут неактивности — первый запрос после этого будет медленнее (~30 сек).
+```json
+{"data":{"status":"ok","db":"ok","uptime":123}}
+```
+
+Also verify a real sign-up/sign-in/reset-password flow, invitation acceptance, manager shift creation, employee QR check-in/out, order payment and Stripe webhook delivery in a staging environment configured like production.
+
+## 5. Mobile release
+
+Set the HTTPS API URL in the build environment (never a local address), then use EAS production profiles:
+
+```bash
+cd mobile
+bun install --frozen-lockfile
+bun run typecheck
+bun run lint -- --max-warnings 0
+bunx eas build --platform all --profile production
+```
+
+Before store submission, replace the bundled legal text with company-specific details reviewed for the jurisdictions where Shiftora operates, complete Apple/Google privacy declarations, and test location, camera, notifications and payment return links on physical iOS and Android devices.
+
+## 6. Rollback
+
+Prisma production migrations are forward-only. If deployment fails, keep the previous application image available and restore from the verified snapshot when a schema rollback is necessary. Do not use `db push --accept-data-loss` as a rollback mechanism.

@@ -69,7 +69,7 @@ export default function ProfileScreen() {
           <ScreenHeader title="Profile" />
           <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: spacing.xl }}>
             <ErrorState
-              message={sessionErrorObj instanceof Error ? sessionErrorObj.message : 'Не удалось загрузить профиль'}
+              message={sessionErrorObj instanceof Error ? sessionErrorObj.message : 'Could not load profile'}
               onRetry={() => refetchSession()}
               testID="profile-error"
             />

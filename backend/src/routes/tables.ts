@@ -34,7 +34,7 @@ const orderInclude = {
 
 router.get("/", async (c) => {
   const user = requireStaff(getAuthUser(c));
-  let tables = await prisma.restaurantTable.findMany({
+  const tables = await prisma.restaurantTable.findMany({
     where: { restaurantId: user.restaurantId! },
     orderBy: { number: "asc" },
     include: {
@@ -46,30 +46,6 @@ router.get("/", async (c) => {
       },
     },
   });
-
-  if (tables.length === 0 && ["owner", "manager"].includes(user.role)) {
-    await prisma.restaurantTable.createMany({
-      data: Array.from({ length: 12 }, (_, index) => ({
-        restaurantId: user.restaurantId!,
-        number: index + 1,
-        label: `Table ${index + 1}`,
-        capacity: 4,
-      })),
-      skipDuplicates: true,
-    });
-    tables = await prisma.restaurantTable.findMany({
-      where: { restaurantId: user.restaurantId! },
-      orderBy: { number: "asc" },
-      include: {
-        orders: {
-          where: { status: { notIn: ["PAID", "CANCELLED"] } },
-          take: 1,
-          include: orderInclude,
-          orderBy: { createdAt: "desc" },
-        },
-      },
-    });
-  }
 
   return c.json({ data: tables });
 });

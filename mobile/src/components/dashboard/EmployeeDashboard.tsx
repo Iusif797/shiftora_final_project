@@ -87,7 +87,7 @@ export function EmployeeDashboard() {
         }
       >
         <ErrorState
-          message={error instanceof Error ? error.message : 'Не удалось загрузить смены'}
+          message={error instanceof Error ? error.message : 'Could not load shifts'}
           onRetry={() => refetch()}
           testID="employee-dashboard-error"
         />
@@ -97,7 +97,8 @@ export function EmployeeDashboard() {
 
   const nextShift = upcoming?.[0];
   const canCheckIn = nextShift?.shift
-    ? Math.abs(new Date(nextShift.shift.startTime).getTime() - Date.now()) <= 60 * 60 * 1000
+    ? Date.now() >= new Date(nextShift.shift.startTime).getTime() - 60 * 60 * 1000 &&
+      Date.now() <= new Date(nextShift.shift.endTime).getTime()
     : false;
 
   return (

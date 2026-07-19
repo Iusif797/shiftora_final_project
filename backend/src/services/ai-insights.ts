@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
+import { logger } from "../lib/logger";
 
 export interface InsightsMetrics {
   avgHoursPerEmployee: number;
@@ -82,12 +83,12 @@ function parseAIResponse(text: string): AIInsightResult | null {
     const raw = JSON.parse(trimmed);
     const result = AIResponseSchema.safeParse(raw);
     if (!result.success) {
-      console.warn("[AI] Response failed Zod validation:", result.error.issues.map((i) => i.message).join(", "));
+      logger.warn({ issues: result.error.issues.map((i) => i.message) }, "[AI] Response failed Zod validation");
       return null;
     }
     return result.data;
   } catch {
-    console.warn("[AI] Failed to parse JSON response");
+    logger.warn("[AI] Failed to parse JSON response");
     return null;
   }
 }
@@ -124,13 +125,13 @@ export async function generateAIInsights(metrics: InsightsMetrics): Promise<AIIn
 
     const text = response.text ?? "";
     if (!text) {
-      console.warn("[AI] Gemini returned empty response");
+      logger.warn("[AI] Gemini returned empty response");
       return null;
     }
     return parseAIResponse(text);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("[AI] Gemini call failed:", message);
+    logger.error({ message }, "[AI] Gemini call failed");
     return null;
   }
 }

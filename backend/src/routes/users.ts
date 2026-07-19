@@ -1,8 +1,16 @@
 import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
 import { prisma } from "../prisma";
 import { type AuthContext, getAuthUser } from "../middleware/auth";
 
 const router = new Hono<AuthContext>();
+
+const pushTokenSchema = z.object({ token: z.string().trim().min(20).max(500) });
+const updateMeSchema = z.object({
+  name: z.string().trim().min(1).max(100).optional(),
+  image: z.string().url().max(2_000).nullable().optional(),
+});
 
 router.get("/me", async (c) => {
   const user = getAuthUser(c);
@@ -16,15 +24,11 @@ router.get("/me", async (c) => {
   return c.json({ data: fullUser });
 });
 
-router.post("/push-token", async (c) => {
+router.post("/push-token", zValidator("json", pushTokenSchema), async (c) => {
   const user = getAuthUser(c);
   if (!user) return c.json({ error: { message: "Unauthorized" } }, 401);
 
-  const body = await c.req.json().catch(() => ({} as { token?: string }));
-  const token = body.token;
-  if (!token || typeof token !== "string") {
-    return c.json({ error: { message: "token required" } }, 400);
-  }
+  const { token } = c.req.valid("json");
 
   await prisma.user.update({
     where: { id: user.id },
@@ -34,12 +38,24 @@ router.post("/push-token", async (c) => {
   return c.json({ data: { success: true } });
 });
 
-router.patch("/me", async (c) => {
+router.patch("/me", zValidator("json", updateMeSchema), async (c) => {
   const user = getAuthUser(c);
   if (!user) return c.json({ error: { message: "Unauthorized" } }, 401);
 
-  const body = await c.req.json();
-  const { name, image } = body;
+  const { name, image } = c.req.valid("json");
+
+  if (image) {
+    const asset = await prisma.asset.findFirst({
+      where: { userId: user.id, url: image },
+      select: { id: true },
+    });
+    if (!asset) {
+      return c.json(
+        { error: { message: "Profile image does not belong to this account", code: "INVALID_IMAGE" } },
+        400,
+      );
+    }
+  }
 
   const updated = await prisma.user.update({
     where: { id: user.id },
@@ -53,34 +69,11 @@ router.patch("/me", async (c) => {
   return c.json({ data: updated });
 });
 
-router.post("/join-restaurant", async (c) => {
-  const user = getAuthUser(c);
-  if (!user) return c.json({ error: { message: "Unauthorized" } }, 401);
-
-  const body = await c.req.json();
-  const { restaurantId, role } = body;
-
-  if (!restaurantId) return c.json({ error: { message: "restaurantId required" } }, 400);
-
-  const restaurant = await prisma.restaurant.findUnique({ where: { id: restaurantId } });
-  if (!restaurant) return c.json({ error: { message: "Restaurant not found" } }, 404);
-
-  const userRole = role || "employee";
-
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { restaurantId, role: userRole },
-  });
-
-  if (userRole !== "owner") {
-    await prisma.employee.upsert({
-      where: { userId: user.id },
-      update: { restaurantId, isActive: true },
-      create: { userId: user.id, restaurantId },
-    });
-  }
-
-  return c.json({ data: { success: true, restaurantId } });
-});
+// Присоединение к ресторану выполняется ТОЛЬКО через инвайт-код
+// (см. routes/invitations.ts#accept) — там роль и restaurantId берутся из
+// записи приглашения на сервере, а не из тела запроса. Прежний эндпоинт
+// /join-restaurant позволял клиенту задать себе role: "owner" любого ресторана
+// (privilege escalation) и удалён. Создание ресторана владельцем —
+// routes/restaurants.ts (POST /), где ownerId выводится из сессии.
 
 export { router as userRouter };

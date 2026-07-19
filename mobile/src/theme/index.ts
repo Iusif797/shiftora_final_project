@@ -45,8 +45,8 @@ export const colors = {
   text: {
     primary: '#FFFFFF',
     secondary: '#A0A0A0',
-    tertiary: '#666666',
-    disabled: '#444444',
+    tertiary: '#8A8A8A',
+    disabled: '#666666',
     inverse: '#000000',
   },
   roles: {

@@ -62,24 +62,25 @@ enum SubscriptionStatus {
 }
 
 model User {
-  id            String    @id
+  id            String   @id
   name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
+  email         String   @unique
+  emailVerified Boolean  @default(false)
   image         String?
   pushToken     String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  role          UserRole  @default(employee)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  role          UserRole @default(employee)
   restaurantId  String?
 
   sessions      Session[]
   accounts      Account[]
   employee      Employee?
-  restaurant    Restaurant? @relation("owner")
+  restaurant    Restaurant?  @relation("owner")
   createdShifts Shift[]
   assets        Asset[]
   invitations   Invitation[] @relation("inviter")
+  createdOrders Order[]
 
   @@index([restaurantId])
   @@index([email])
@@ -142,25 +143,25 @@ model Verification {
 }
 
 model Restaurant {
-  id          String   @id @default(cuid())
-  name        String
-  address     String?
-  phone       String?
-  timezone    String   @default("UTC")
-  latitude    Float?
-  longitude   Float?
-  taxRate     Float    @default(0.1)
-  ownerId     String   @unique
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  phone     String?
+  timezone  String   @default("UTC")
+  latitude  Float?
+  longitude Float?
+  taxRate   Float    @default(0.1)
+  ownerId   String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  owner        User          @relation("owner", fields: [ownerId], references: [id])
-  employees    Employee[]
-  shifts       Shift[]
-  checkins     Checkin[]
-  anomalies    Anomaly[]
-  invitations  Invitation[]
-  subscription Subscription?
+  owner          User              @relation("owner", fields: [ownerId], references: [id])
+  employees      Employee[]
+  shifts         Shift[]
+  checkins       Checkin[]
+  anomalies      Anomaly[]
+  invitations    Invitation[]
+  subscription   Subscription?
   menuCategories MenuCategory[]
   menuItems      MenuItem[]
   tables         RestaurantTable[]
@@ -220,6 +221,7 @@ model ShiftAssignment {
   checkins  Checkin[]
   anomalies Anomaly[]
 
+  @@unique([shiftId, employeeId])
   @@index([shiftId])
   @@index([employeeId])
 }
@@ -242,9 +244,38 @@ model Checkin {
   employee        Employee        @relation(fields: [employeeId], references: [id])
   restaurant      Restaurant      @relation(fields: [restaurantId], references: [id])
 
+  @@unique([shiftAssignmentId])
   @@index([restaurantId])
   @@index([employeeId])
   @@index([restaurantId, checkinTime])
+}
+
+model RateLimitBucket {
+  key       String   @id
+  count     Int
+  resetAt   DateTime
+  updatedAt DateTime @updatedAt
+
+  @@index([resetAt])
+}
+
+enum WebhookEventStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model StripeWebhookEvent {
+  id          String             @id
+  type        String
+  status      WebhookEventStatus @default(PROCESSING)
+  attempts    Int                @default(1)
+  lastError   String?
+  processedAt DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([status, createdAt])
 }
 
 model Anomaly {
@@ -416,6 +447,7 @@ model Order {
 
   restaurant Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   table      RestaurantTable @relation(fields: [tableId], references: [id])
+  createdBy  User            @relation(fields: [createdById], references: [id])
   items      OrderItem[]
 
   @@index([restaurantId])

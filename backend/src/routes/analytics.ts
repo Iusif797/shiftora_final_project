@@ -11,6 +11,15 @@ import { assertFeature } from "../middleware/subscription";
 
 const router = new Hono<AuthContext>();
 
+router.use("*", async (c, next) => {
+  const user = getAuthUser(c);
+  if (!user) return c.json({ error: { message: "Unauthorized", code: "UNAUTHORIZED" } }, 401);
+  if (!["manager", "owner"].includes(user.role)) {
+    return c.json({ error: { message: "Forbidden", code: "FORBIDDEN" } }, 403);
+  }
+  return next();
+});
+
 router.get("/overview", async (c) => {
   const user = getAuthUser(c);
   if (!user) return c.json({ error: { message: "Unauthorized" } }, 401);
@@ -61,9 +70,24 @@ router.get("/workload-forecast", async (c) => {
   const startDate = c.req.query("startDate")
     ? new Date(c.req.query("startDate")!)
     : new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const endDate = c.req.query("endDate")
+  if (Number.isNaN(startDate.getTime())) {
+    return c.json({ error: { message: "Invalid startDate", code: "VALIDATION_ERROR" } }, 400);
+  }
+  const requestedEnd = c.req.query("endDate")
     ? new Date(c.req.query("endDate")!)
     : new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+  if (Number.isNaN(requestedEnd.getTime())) {
+    return c.json({ error: { message: "Invalid endDate", code: "VALIDATION_ERROR" } }, 400);
+  }
+  if (requestedEnd < startDate) {
+    return c.json({ error: { message: "endDate before startDate", code: "VALIDATION_ERROR" } }, 400);
+  }
+  // Ограничиваем диапазон 31 днём — защита от гигантских запросов (CPU DoS).
+  const MAX_RANGE_MS = 31 * 24 * 60 * 60 * 1000;
+  const endDate =
+    requestedEnd.getTime() - startDate.getTime() > MAX_RANGE_MS
+      ? new Date(startDate.getTime() + MAX_RANGE_MS)
+      : requestedEnd;
 
   const data = await getWorkloadForecast(user.restaurantId, startDate, endDate);
   return c.json({ data });

@@ -125,6 +125,12 @@ router.put("/items/:id", zValidator("json", itemSchema.partial()), async (c) => 
   if (!existing) throw new AppError(404, "Not found", "NOT_FOUND");
   assertRestaurantAccess(user, existing.restaurantId);
   const body = c.req.valid("json");
+  if (body.categoryId) {
+    const category = await prisma.menuCategory.findUnique({ where: { id: body.categoryId } });
+    if (!category || category.restaurantId !== user.restaurantId) {
+      throw new AppError(400, "Invalid category", "INVALID_CATEGORY");
+    }
+  }
   const item = await prisma.menuItem.update({ where: { id }, data: body });
   return c.json({ data: item });
 });
