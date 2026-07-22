@@ -7,6 +7,10 @@ import { sendPushNotification } from "../services/notifications";
 import { type AuthContext, getAuthUser } from "../middleware/auth";
 import { AppError } from "../middleware/error-handler";
 import { verifyCheckinToken } from "../lib/checkin-token";
+import {
+  resolveCheckinEventTime,
+  resolveCheckoutEventTime,
+} from "../lib/checkin-event-time";
 
 const router = new Hono<AuthContext>();
 
@@ -35,11 +39,15 @@ const checkinSchema = z.object({
   longitude: z.coerce.number().min(-180).max(180).optional(),
   photoUrl: z.string().url().max(2_000).optional(),
   qrPayload: z.string().max(1_000).optional(),
+  clientTimestamp: z.string().datetime().optional(),
+  idempotencyKey: z.string().uuid().optional(),
 });
 
 const checkoutSchema = z.object({
   checkinId: z.string().min(1, "checkinId required"),
   notes: z.string().optional(),
+  clientTimestamp: z.string().datetime().optional(),
+  idempotencyKey: z.string().uuid().optional(),
 });
 
 router.post("/checkin", zValidator("json", checkinSchema), async (c) => {
@@ -47,7 +55,27 @@ router.post("/checkin", zValidator("json", checkinSchema), async (c) => {
   if (!user) return c.json({ error: { message: "Unauthorized" } }, 401);
 
   const body = c.req.valid("json");
-  const { shiftAssignmentId, notes, latitude, longitude, photoUrl, qrPayload } = body;
+  const {
+    shiftAssignmentId,
+    notes,
+    latitude,
+    longitude,
+    photoUrl,
+    qrPayload,
+    clientTimestamp,
+    idempotencyKey,
+  } = body;
+
+  if (idempotencyKey) {
+    const prior = await prisma.checkin.findUnique({ where: { idempotencyKey } });
+    if (prior) {
+      const owner = await prisma.employee.findUnique({ where: { userId: user.id } });
+      if (!owner || owner.id !== prior.employeeId) {
+        return c.json({ error: { message: "Idempotency key conflict", code: "IDEMPOTENCY_CONFLICT" } }, 409);
+      }
+      return c.json({ data: prior });
+    }
+  }
 
   const assignment = await prisma.shiftAssignment.findUnique({
     where: { id: shiftAssignmentId },
@@ -76,19 +104,15 @@ router.post("/checkin", zValidator("json", checkinSchema), async (c) => {
     );
   }
 
-  const now = new Date();
-  const earliestCheckin = new Date(assignment.shift.startTime.getTime() - 60 * 60 * 1000);
-  if (now < earliestCheckin || now > assignment.shift.endTime) {
-    return c.json(
-      {
-        error: {
-          message: "Check-in is only available from 60 minutes before the shift until it ends",
-          code: "OUTSIDE_CHECKIN_WINDOW",
-        },
-      },
-      409,
-    );
+  const resolved = resolveCheckinEventTime({
+    clientTimestamp,
+    shiftStart: assignment.shift.startTime,
+    shiftEnd: assignment.shift.endTime,
+  });
+  if (!resolved.ok) {
+    return c.json({ error: { message: resolved.message, code: resolved.code } }, 409);
   }
+  const eventTime = resolved.eventTime;
 
   if (qrPayload) {
     const verified = verifyCheckinToken(qrPayload);
@@ -113,9 +137,6 @@ router.post("/checkin", zValidator("json", checkinSchema), async (c) => {
     }
   }
 
-  // Геофенс (опционально): если у ресторана заданы координаты и клиент прислал
-  // свои — проверяем, что отметка сделана в пределах радиуса. Защита от
-  // отметок «из дома». Без координат ресторана или клиента проверка пропускается.
   const restaurant = await prisma.restaurant.findUnique({
     where: { id: assignment.shift.restaurantId },
     select: { latitude: true, longitude: true },
@@ -165,12 +186,13 @@ router.post("/checkin", zValidator("json", checkinSchema), async (c) => {
           shiftAssignmentId,
           employeeId: assignment.employeeId,
           restaurantId: assignment.shift.restaurantId,
-          checkinTime: now,
+          checkinTime: eventTime,
           notes: notes ?? null,
           latitude: latitude ?? null,
           longitude: longitude ?? null,
           photoUrl: photoUrl ?? null,
           qrPayload: qrPayload ?? null,
+          idempotencyKey: idempotencyKey ?? null,
         },
       });
       await tx.shiftAssignment.update({
@@ -181,6 +203,10 @@ router.post("/checkin", zValidator("json", checkinSchema), async (c) => {
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      if (idempotencyKey) {
+        const byKey = await prisma.checkin.findUnique({ where: { idempotencyKey } });
+        if (byKey) return c.json({ data: byKey });
+      }
       const duplicate = await prisma.checkin.findUnique({ where: { shiftAssignmentId } });
       if (duplicate && !duplicate.checkoutTime) return c.json({ data: duplicate });
       return c.json(
@@ -225,23 +251,48 @@ router.post("/checkout", zValidator("json", checkoutSchema), async (c) => {
   const user = getAuthUser(c);
   if (!user) return c.json({ error: { message: "Unauthorized" } }, 401);
 
-  const { checkinId, notes } = c.req.valid("json");
+  const { checkinId, notes, clientTimestamp, idempotencyKey } = c.req.valid("json");
+
+  if (idempotencyKey) {
+    const prior = await prisma.checkin.findUnique({ where: { checkoutIdempotencyKey: idempotencyKey } });
+    if (prior) {
+      const owner = await prisma.employee.findUnique({ where: { userId: user.id } });
+      if (!owner || owner.id !== prior.employeeId) {
+        return c.json({ error: { message: "Idempotency key conflict", code: "IDEMPOTENCY_CONFLICT" } }, 409);
+      }
+      return c.json({ data: prior });
+    }
+  }
 
   const checkin = await prisma.checkin.findUnique({ where: { id: checkinId } });
   if (!checkin) return c.json({ error: { message: "Checkin not found" } }, 404);
-  if (checkin.checkoutTime) return c.json({ error: { message: "Already checked out" } }, 400);
+  if (checkin.checkoutTime) return c.json({ data: checkin });
 
   const employee = await prisma.employee.findUnique({ where: { userId: user.id } });
   if (!employee || employee.id !== checkin.employeeId) {
     return c.json({ error: { message: "Not your checkin" } }, 403);
   }
 
+  const resolved = resolveCheckoutEventTime({
+    clientTimestamp,
+    checkinTime: checkin.checkinTime,
+  });
+  if (!resolved.ok) {
+    return c.json({ error: { message: resolved.message, code: resolved.code } }, 409);
+  }
+
   const updated = await prisma.$transaction(async (tx) => {
     const claimed = await tx.checkin.updateMany({
       where: { id: checkinId, checkoutTime: null },
-      data: { checkoutTime: new Date(), notes: notes ?? checkin.notes },
+      data: {
+        checkoutTime: resolved.eventTime,
+        notes: notes ?? checkin.notes,
+        checkoutIdempotencyKey: idempotencyKey ?? null,
+      },
     });
     if (claimed.count !== 1) {
+      const current = await tx.checkin.findUniqueOrThrow({ where: { id: checkinId } });
+      if (current.checkoutTime) return current;
       throw new AppError(409, "Already checked out", "ALREADY_CHECKED_OUT");
     }
     await tx.shiftAssignment.update({

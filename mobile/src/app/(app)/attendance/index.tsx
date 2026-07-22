@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { RefreshControl, Text, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
@@ -8,10 +8,17 @@ import { router } from 'expo-router';
 import { ScreenScroll } from '@/components/app-shell';
 import { AccentBadge, PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { EmptyState, ErrorState, HighlightCard, SurfaceCard } from '@/components/cards';
+import { StaggerItem } from '@/components/ui/motion';
+import { ScalePressable } from '@/components/ui/pressable';
+import { CardListSkeleton, HeroSkeleton } from '@/components/ui/skeletons';
 import { api } from '@/lib/api/api';
-import { getLocationForCheckin } from '@/lib/checkin';
+import {
+  OFFLINE_CHECKIN_QUEUE_KEY,
+  useOfflineCheckinQueue,
+} from '@/hooks/use-offline-checkin-sync';
+import { getPendingCheckin } from '@/lib/offline-checkin-queue';
+import { submitCheckin, submitCheckout } from '@/lib/submit-checkin';
 import { showAlert, showError, showSuccess } from '@/lib/toast';
-import { uploadFile } from '@/lib/upload';
 import { formatDate, formatTime } from '@/lib/formatters';
 import { colors, spacing, typography } from '@/theme';
 import type { Checkin, ShiftAssignment } from '@/types/app';
@@ -19,11 +26,18 @@ import type { Checkin, ShiftAssignment } from '@/types/app';
 export default function Attendance() {
   const queryClient = useQueryClient();
   const [photoCheckinAssignmentId, setPhotoCheckinAssignmentId] = useState<string | null>(null);
-  const { data: activeCheckin, isLoading: loadingActive, isError: errorActive, error: errorActiveObj, refetch: refetchActive } = useQuery({
+  const { data: offlineQueue } = useOfflineCheckinQueue();
+  const pendingCheckin = useMemo(
+    () => getPendingCheckin(offlineQueue ?? []),
+    [offlineQueue],
+  );
+  const pendingCount = offlineQueue?.length ?? 0;
+
+  const { data: activeCheckin, isLoading: loadingActive, isRefetching: refetchingActive, isError: errorActive, error: errorActiveObj, refetch: refetchActive } = useQuery({
     queryKey: ['active-checkin'],
     queryFn: () => api.get<Checkin | null>('/api/checkins/active'),
   });
-  const { data: history, isLoading: loadingHistory, isError: errorHistory, error: errorHistoryObj, refetch: refetchHistory } = useQuery({
+  const { data: history, isLoading: loadingHistory, isRefetching: refetchingHistory, isError: errorHistory, error: errorHistoryObj, refetch: refetchHistory } = useQuery({
     queryKey: ['checkin-history'],
     queryFn: () => api.get<{ items: Checkin[] }>('/api/checkins/history?limit=20'),
   });
@@ -32,27 +46,25 @@ export default function Attendance() {
     queryFn: () => api.get<ShiftAssignment[]>('/api/shifts/upcoming'),
   });
 
-  const performCheckin = async (shiftAssignmentId: string, opts?: { photoUrl?: string; qrPayload?: string }) => {
-    const location = await getLocationForCheckin();
-    const body: Record<string, unknown> = {
-      shiftAssignmentId,
-      ...(location && { latitude: location.latitude, longitude: location.longitude }),
-      ...(opts?.photoUrl && { photoUrl: opts.photoUrl }),
-      ...(opts?.qrPayload && { qrPayload: opts.qrPayload }),
-    };
-    return api.post<Checkin>('/api/checkins/checkin', body);
+  const invalidateAttendance = async () => {
+    await queryClient.invalidateQueries({ queryKey: OFFLINE_CHECKIN_QUEUE_KEY });
+    await refetchActive();
+    await refetchHistory();
+    await queryClient.invalidateQueries({ queryKey: ['upcoming-shifts'] });
   };
 
   const checkinMutation = useMutation({
-    mutationFn: ({ shiftAssignmentId, photoUrl, qrPayload }: { shiftAssignmentId: string; photoUrl?: string; qrPayload?: string }) =>
-      performCheckin(shiftAssignmentId, { photoUrl, qrPayload }),
-    onSuccess: () => {
+    mutationFn: ({ shiftAssignmentId, photoLocalUri }: { shiftAssignmentId: string; photoLocalUri?: string }) =>
+      submitCheckin({ shiftAssignmentId, photoLocalUri }),
+    onSuccess: (result) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showSuccess('Clocked in', 'Your shift has started');
       setPhotoCheckinAssignmentId(null);
-      refetchActive();
-      refetchHistory();
-      queryClient.invalidateQueries({ queryKey: ['upcoming-shifts'] });
+      if (result.mode === 'queued') {
+        showSuccess('Saved offline', 'Check-in will sync when you are online');
+      } else {
+        showSuccess('Clocked in', 'Your shift has started');
+      }
+      void invalidateAttendance();
     },
     onError: (err: Error) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -74,26 +86,28 @@ export default function Attendance() {
     });
     if (result.canceled || !result.assets[0]) return;
     setPhotoCheckinAssignmentId(nextShift.id);
-    try {
-      const asset = await uploadFile(
-        result.assets[0].uri,
-        `checkin-${Date.now()}.jpg`,
-        'image/jpeg'
-      );
-      checkinMutation.mutate({ shiftAssignmentId: nextShift.id, photoUrl: asset.url });
-    } catch {
-      setPhotoCheckinAssignmentId(null);
-      showAlert('Upload failed', 'Could not upload photo. Try again.');
-    }
+    checkinMutation.mutate({
+      shiftAssignmentId: nextShift.id,
+      photoLocalUri: result.assets[0].uri,
+    });
   };
 
   const checkoutMutation = useMutation({
-    mutationFn: (checkinId: string) => api.post<Checkin>('/api/checkins/checkout', { checkinId }),
-    onSuccess: () => {
+    mutationFn: () => {
+      if (pendingCheckin) {
+        return submitCheckout({ pendingCheckinLocalId: pendingCheckin.localId });
+      }
+      if (!activeCheckin?.id) throw new Error('No active check-in');
+      return submitCheckout({ checkinId: activeCheckin.id });
+    },
+    onSuccess: (result) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showSuccess('Clocked out', 'Your shift has ended');
-      refetchActive();
-      refetchHistory();
+      if (result.mode === 'queued') {
+        showSuccess('Saved offline', 'Checkout will sync when you are online');
+      } else {
+        showSuccess('Clocked out', 'Your shift has ended');
+      }
+      void invalidateAttendance();
     },
     onError: (err: Error) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -107,6 +121,20 @@ export default function Attendance() {
       Date.now() <= new Date(nextShift.shift.endTime).getTime()
     : false;
 
+  const pendingShiftTitle =
+    nextShift?.shift?.title ??
+    upcoming?.find((assignment) => assignment.id === pendingCheckin?.shiftAssignmentId)?.shift?.title ??
+    'Current shift';
+
+  const displayActive = activeCheckin ?? (pendingCheckin
+    ? {
+        id: `pending:${pendingCheckin.localId}`,
+        checkinTime: pendingCheckin.clientTimestamp,
+        shiftAssignment: { shift: { title: pendingShiftTitle } },
+        pending: true as const,
+      }
+    : null);
+
   const onRetry = () => {
     refetchActive();
     refetchHistory();
@@ -117,17 +145,31 @@ export default function Attendance() {
       title="Attendance"
       subtitle="Check in, check out, and review shift history"
       leftSlot={
-        <Pressable onPress={() => router.back()} testID="attendance-back" hitSlop={12} style={{ padding: 4 }}>
+        <ScalePressable onPress={() => router.back()} testID="attendance-back" hitSlop={12} scale={0.9} style={{ padding: 4 }}>
           <ChevronLeft color={colors.text.primary} size={24} strokeWidth={2} />
-        </Pressable>
+        </ScalePressable>
       }
+      refreshControl={<RefreshControl refreshing={refetchingActive || refetchingHistory} onRefresh={onRetry} tintColor={colors.brand.gold} />}
       testID="attendance-screen"
     >
-      {loadingActive || loadingHistory ? (
-        <ActivityIndicator color={colors.brand.primary} style={{ marginTop: spacing.xxxl }} />
+      {pendingCount > 0 ? (
+        <View testID="attendance-pending-banner">
+        <SurfaceCard>
+          <Text style={{ ...typography.body, color: colors.warning.base }}>
+            {pendingCount === 1
+              ? '1 attendance action waiting to sync'
+              : `${pendingCount} attendance actions waiting to sync`}
+          </Text>
+        </SurfaceCard>
+        </View>
       ) : null}
 
-      {(errorActive || errorHistory) && !activeCheckin && !history?.items?.length ? (
+      {loadingActive || loadingHistory ? (
+        <View testID="attendance-loading" style={{ gap: spacing.xl }}>
+          <HeroSkeleton />
+          <CardListSkeleton count={3} />
+        </View>
+      ) : (errorActive || errorHistory) && !displayActive && !history?.items?.length ? (
         <ErrorState
           message={
             errorActiveObj instanceof Error
@@ -139,19 +181,23 @@ export default function Attendance() {
           onRetry={onRetry}
           testID="attendance-error"
         />
-      ) : activeCheckin ? (
+      ) : displayActive ? (
         <HighlightCard>
-          <AccentBadge label="Checked in" color={colors.success.base} tint={colors.success.muted} />
+          <AccentBadge
+            label={'pending' in displayActive && displayActive.pending ? 'Pending sync' : 'Checked in'}
+            color={'pending' in displayActive && displayActive.pending ? colors.warning.base : colors.success.base}
+            tint={'pending' in displayActive && displayActive.pending ? colors.warning.muted : colors.success.muted}
+          />
           <Text style={{ ...typography.h2, color: colors.text.primary, marginTop: spacing.lg }}>
-            {activeCheckin.shiftAssignment?.shift?.title ?? 'Current shift'}
+            {displayActive.shiftAssignment?.shift?.title ?? 'Current shift'}
           </Text>
           <Text style={{ ...typography.body, color: colors.text.secondary, marginTop: spacing.sm }}>
-            Started at {formatTime(activeCheckin.checkinTime)}
+            Started at {formatTime(displayActive.checkinTime)}
           </Text>
           <View style={{ marginTop: spacing.xl }}>
             <PrimaryButton
               label="Finish shift"
-              onPress={() => checkoutMutation.mutate(activeCheckin.id)}
+              onPress={() => checkoutMutation.mutate()}
               loading={checkoutMutation.isPending}
               icon={LogOut}
               testID="attendance-checkout-button"
@@ -199,19 +245,21 @@ export default function Attendance() {
         />
       )}
 
-      {!((errorActive || errorHistory) && !activeCheckin && !history?.items?.length) ? (
+      {!((errorActive || errorHistory) && !displayActive && !history?.items?.length) ? (
       <View style={{ marginTop: spacing.xl, gap: spacing.md }}>
         {history?.items?.length ? (
-          history.items.slice(0, 10).map((entry) => (
-            <SurfaceCard key={entry.id}>
-              <Text style={{ ...typography.h4, color: colors.text.primary }}>
-                {entry.shiftAssignment?.shift?.title ?? 'Recorded shift'}
-              </Text>
-              <Text style={{ ...typography.bodySmall, color: colors.text.secondary, marginTop: 4 }}>
-                {formatDate(entry.checkinTime)} · {formatTime(entry.checkinTime)}
-                {entry.checkoutTime ? ` - ${formatTime(entry.checkoutTime)}` : ' - in progress'}
-              </Text>
-            </SurfaceCard>
+          history.items.slice(0, 10).map((entry, index) => (
+            <StaggerItem key={entry.id} index={index}>
+              <SurfaceCard>
+                <Text style={{ ...typography.h4, color: colors.text.primary }}>
+                  {entry.shiftAssignment?.shift?.title ?? 'Recorded shift'}
+                </Text>
+                <Text style={{ ...typography.bodySmall, color: colors.text.secondary, marginTop: 4 }}>
+                  {formatDate(entry.checkinTime)} · {formatTime(entry.checkinTime)}
+                  {entry.checkoutTime ? ` - ${formatTime(entry.checkoutTime)}` : ' - in progress'}
+                </Text>
+              </SurfaceCard>
+            </StaggerItem>
           ))
         ) : !loadingHistory ? (
           <EmptyState

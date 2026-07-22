@@ -6,8 +6,12 @@ import * as Haptics from 'expo-haptics';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScalePressable } from '@/components/ui/pressable';
 import { api } from '@/lib/api/api';
+import { useNetworkStatus } from '@/lib/use-network';
+import { showError } from '@/lib/toast';
 import { getLocationForCheckin } from '@/lib/checkin';
+import { createUuid } from '@/lib/offline-checkin-queue';
 import { colors, spacing, typography } from '@/theme';
 import type { Checkin } from '@/types/app';
 
@@ -25,12 +29,15 @@ export default function ScanQR() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isConnected = useNetworkStatus();
 
   const performCheckin = useCallback(async (shiftAssignmentId: string, qrPayload: string) => {
     const location = await getLocationForCheckin();
     const body: Record<string, unknown> = {
       shiftAssignmentId,
       qrPayload,
+      clientTimestamp: new Date().toISOString(),
+      idempotencyKey: await createUuid(),
       ...(location && { latitude: location.latitude, longitude: location.longitude }),
     };
     return api.post<Checkin>('/api/checkins/checkin', body);
@@ -56,6 +63,11 @@ export default function ScanQR() {
   const handleBarCodeScanned = useCallback(
     ({ data }: { data: string }) => {
       if (scanned || isPending) return;
+      if (!isConnected) {
+        setError('QR check-in requires an internet connection');
+        showError('Offline', 'QR check-in requires an internet connection');
+        return;
+      }
       const assignmentId = parseShiftAssignmentId(data);
       if (!assignmentId) {
         setError('Invalid QR code');
@@ -65,7 +77,7 @@ export default function ScanQR() {
       setError(null);
       mutate({ shiftAssignmentId: assignmentId, qrPayload: data });
     },
-    [scanned, isPending, mutate]
+    [scanned, isPending, mutate, isConnected]
   );
 
   if (!permission) {
@@ -80,13 +92,13 @@ export default function ScanQR() {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <Text style={styles.message}>Camera permission is required to scan QR codes.</Text>
-        <Pressable onPress={requestPermission} style={styles.button}>
+        <ScalePressable onPress={() => requestPermission()} scale={0.98} style={styles.button}>
           <Text style={styles.buttonText}>Grant permission</Text>
-        </Pressable>
-        <Pressable onPress={() => router.back()} style={[styles.button, styles.backButton]}>
+        </ScalePressable>
+        <ScalePressable onPress={() => router.back()} scale={0.98} style={[styles.button, styles.backButton]}>
           <ChevronLeft color={colors.text.primary} size={20} />
           <Text style={styles.buttonText}>Back</Text>
-        </Pressable>
+        </ScalePressable>
       </View>
     );
   }
@@ -109,9 +121,9 @@ export default function ScanQR() {
           },
         ]}
       >
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <ScalePressable onPress={() => router.back()} scale={0.9} style={styles.backBtn}>
           <ChevronLeft color={colors.text.primary} size={24} />
-        </Pressable>
+        </ScalePressable>
         <Text style={styles.title}>Scan check-in QR</Text>
       </View>
       {error ? (

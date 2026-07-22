@@ -1,6 +1,7 @@
 import { Redirect } from 'expo-router';
 import { View } from 'react-native';
 import { useSession } from '@/lib/auth/use-session';
+import { colors } from '@/theme';
 import type { AppUser } from '@/types/app';
 
 export default function Index() {
@@ -8,7 +9,7 @@ export default function Index() {
   const user = session?.user as AppUser | undefined;
 
   if (isLoading) {
-    return <View style={{ flex: 1, backgroundColor: '#070711' }} testID="index-loading" />;
+    return <View style={{ flex: 1, backgroundColor: colors.bg.base }} testID="index-loading" />;
   }
 
   if (!user) {

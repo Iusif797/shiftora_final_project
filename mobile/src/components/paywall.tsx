@@ -79,10 +79,11 @@ export function PaywallGate({
 
           <Text style={styles.lockTitle}>{featureLabel}</Text>
           <Text style={styles.lockSubtitle}>
-            Доступно в плане{' '}
+            Available on the{' '}
             <Text style={{ color: plan.color }}>
               {requiredPlan === 'pro' ? 'Pro' : 'Business'}
-            </Text>
+            </Text>{' '}
+            plan
           </Text>
 
           <Pressable
@@ -97,7 +98,7 @@ export function PaywallGate({
               style={styles.upgradeBtnInner}
             >
               <Zap color="#FFFFFF" size={15} strokeWidth={2.5} />
-              <Text style={styles.upgradeBtnText}>Обновить план</Text>
+              <Text style={styles.upgradeBtnText}>Upgrade plan</Text>
             </LinearGradient>
           </Pressable>
         </View>
@@ -175,11 +176,11 @@ export function LimitWarning({ current, max, label }: LimitWarningProps) {
     <View style={[styles.limitWarning, { backgroundColor: bgColor, borderColor }]}>
       <Text style={[styles.limitWarningText, { color }]}>
         {isAtLimit
-          ? `Достигнут лимит ${label} (${max}). Обновите план.`
-          : `${label}: ${current}/${max} — скоро лимит`}
+          ? `${label} limit reached (${max}). Upgrade your plan.`
+          : `${label}: ${current}/${max} — approaching limit`}
       </Text>
       <Pressable onPress={() => router.push('/(app)/billing')}>
-        <Text style={[styles.limitWarningLink, { color }]}>Обновить →</Text>
+        <Text style={[styles.limitWarningLink, { color }]}>Upgrade →</Text>
       </Pressable>
     </View>
   );

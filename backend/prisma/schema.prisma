@@ -227,18 +227,20 @@ model ShiftAssignment {
 }
 
 model Checkin {
-  id                String    @id @default(cuid())
-  shiftAssignmentId String
-  employeeId        String
-  restaurantId      String
-  checkinTime       DateTime  @default(now())
-  checkoutTime      DateTime?
-  notes             String?
-  latitude          Float?
-  longitude         Float?
-  photoUrl          String?
-  qrPayload         String?
-  createdAt         DateTime  @default(now())
+  id                     String    @id @default(cuid())
+  shiftAssignmentId      String
+  employeeId             String
+  restaurantId           String
+  checkinTime            DateTime  @default(now())
+  checkoutTime           DateTime?
+  notes                  String?
+  latitude               Float?
+  longitude              Float?
+  photoUrl               String?
+  qrPayload              String?
+  idempotencyKey         String?   @unique
+  checkoutIdempotencyKey String?   @unique
+  createdAt              DateTime  @default(now())
 
   shiftAssignment ShiftAssignment @relation(fields: [shiftAssignmentId], references: [id])
   employee        Employee        @relation(fields: [employeeId], references: [id])

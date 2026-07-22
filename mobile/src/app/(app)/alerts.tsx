@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { RefreshControl, Text, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
@@ -7,6 +7,9 @@ import { AlertTriangle, X } from 'lucide-react-native';
 import { ScreenScroll } from '@/components/app-shell';
 import { AccentBadge, SecondaryButton } from '@/components/buttons';
 import { EmptyState, SurfaceCard } from '@/components/cards';
+import { StaggerItem } from '@/components/ui/motion';
+import { ScalePressable } from '@/components/ui/pressable';
+import { CardListSkeleton } from '@/components/ui/skeletons';
 import { api } from '@/lib/api/api';
 import { formatDate, formatTime } from '@/lib/formatters';
 import { anomalyAppearance, colors, spacing, typography } from '@/theme';
@@ -16,7 +19,7 @@ export default function Alerts() {
   const queryClient = useQueryClient();
   const [resolvingId, setResolvingId] = useState<string | null>(null);
 
-  const { data: anomalies, isLoading } = useQuery({
+  const { data: anomalies, isLoading, isRefetching, refetch } = useQuery({
     queryKey: ['anomalies'],
     queryFn: () => api.get<Anomaly[]>('/api/anomalies'),
   });
@@ -39,50 +42,57 @@ export default function Alerts() {
       title="Alerts"
       subtitle="Late arrivals, missed shifts, and staffing anomalies"
       leftSlot={
-        <Pressable onPress={() => router.back()} testID="alerts-back" hitSlop={12} style={{ padding: 4 }}>
+        <ScalePressable onPress={() => router.back()} testID="alerts-back" hitSlop={12} scale={0.9} style={{ padding: 4 }}>
           <X color={colors.text.secondary} size={22} strokeWidth={2} />
-        </Pressable>
+        </ScalePressable>
       }
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={colors.brand.gold} />}
       testID="alerts-screen"
     >
-      {isLoading ? <ActivityIndicator color={colors.brand.primary} style={{ marginTop: spacing.xxxl }} /> : null}
+      {isLoading ? (
+        <View testID="alerts-loading">
+          <CardListSkeleton count={3} />
+        </View>
+      ) : null}
 
       {anomalies?.length ? (
         <View style={{ gap: spacing.md }}>
-          {anomalies.map((anomaly) => {
+          {anomalies.map((anomaly, index) => {
             const appearance = anomalyAppearance[anomaly.severity] ?? anomalyAppearance.MEDIUM;
             const isResolving = resolvingId === anomaly.id;
 
             return (
-              <SurfaceCard key={anomaly.id}>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ ...typography.h4, color: colors.text.primary }}>
-                      {anomaly.employee?.user?.name ?? 'Unknown employee'}
-                    </Text>
-                    <Text style={{ ...typography.bodySmall, color: colors.text.secondary, marginTop: 4 }}>
-                      {anomaly.type.replace(/_/g, ' ')}
-                    </Text>
-                    <Text style={{ ...typography.caption, color: colors.text.tertiary, marginTop: spacing.sm }}>
-                      {formatDate(anomaly.detectedAt)} · {formatTime(anomaly.detectedAt)}
-                    </Text>
-                    {anomaly.shiftAssignment?.shift?.title ? (
-                      <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: spacing.sm }}>
-                        Shift: {anomaly.shiftAssignment.shift.title}
+              <StaggerItem key={anomaly.id} index={index}>
+                <SurfaceCard>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ ...typography.h4, color: colors.text.primary }}>
+                        {anomaly.employee?.user?.name ?? 'Unknown employee'}
                       </Text>
-                    ) : null}
+                      <Text style={{ ...typography.bodySmall, color: colors.text.secondary, marginTop: 4 }}>
+                        {anomaly.type.replace(/_/g, ' ')}
+                      </Text>
+                      <Text style={{ ...typography.caption, color: colors.text.tertiary, marginTop: spacing.sm }}>
+                        {formatDate(anomaly.detectedAt)} · {formatTime(anomaly.detectedAt)}
+                      </Text>
+                      {anomaly.shiftAssignment?.shift?.title ? (
+                        <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: spacing.sm }}>
+                          Shift: {anomaly.shiftAssignment.shift.title}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <AccentBadge label={anomaly.severity} color={appearance.color} tint={appearance.tint} />
                   </View>
-                  <AccentBadge label={anomaly.severity} color={appearance.color} tint={appearance.tint} />
-                </View>
-                <View style={{ marginTop: spacing.lg }}>
-                  <SecondaryButton
-                    label={isResolving ? 'Resolving...' : 'Mark as resolved'}
-                    onPress={() => resolveMutation.mutate(anomaly.id)}
-                    disabled={resolveMutation.isPending}
-                    testID={`resolve-anomaly-${anomaly.id}`}
-                  />
-                </View>
-              </SurfaceCard>
+                  <View style={{ marginTop: spacing.lg }}>
+                    <SecondaryButton
+                      label={isResolving ? 'Resolving...' : 'Mark as resolved'}
+                      onPress={() => resolveMutation.mutate(anomaly.id)}
+                      disabled={resolveMutation.isPending}
+                      testID={`resolve-anomaly-${anomaly.id}`}
+                    />
+                  </View>
+                </SurfaceCard>
+              </StaggerItem>
             );
           })}
         </View>

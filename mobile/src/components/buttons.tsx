@@ -1,14 +1,8 @@
 import type { ComponentType } from 'react';
-import { useCallback } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { ActivityIndicator, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Haptics from 'expo-haptics';
-import { colors, gradients, radius, shadows, spacing, typography } from '@/theme';
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-const PRESS_SPRING = { damping: 18, stiffness: 320, mass: 0.6 } as const;
-const PRESS_SCALE = 0.97;
+import { AnimatedPressable, usePressFeedback } from '@/components/ui/pressable';
+import { colors, fonts, gradients, radius, shadows, spacing, typography } from '@/theme';
 
 type IconComponent = ComponentType<{ color: string; size: number; strokeWidth: number }>;
 
@@ -26,20 +20,6 @@ interface BadgeProps {
   label: string;
   color: string;
   tint: string;
-}
-
-function usePressFeedback(active: boolean) {
-  const scale = useSharedValue(1);
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  const onPressIn = useCallback(() => {
-    if (!active) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    scale.value = withSpring(PRESS_SCALE, PRESS_SPRING);
-  }, [active, scale]);
-  const onPressOut = useCallback(() => {
-    scale.value = withSpring(1, PRESS_SPRING);
-  }, [scale]);
-  return { style, onPressIn, onPressOut };
 }
 
 export function PrimaryButton({ label, onPress, loading = false, disabled = false, icon: Icon, testID, accessibilityLabel }: ButtonProps) {
@@ -76,7 +56,7 @@ export function PrimaryButton({ label, onPress, loading = false, disabled = fals
       >
         {loading ? <ActivityIndicator color={colors.text.inverse} /> : null}
         {!loading && Icon ? <Icon color={colors.text.inverse} size={18} strokeWidth={2.5} /> : null}
-        <Text style={{ ...typography.h4, color: colors.text.inverse, fontWeight: '700' }}>{label}</Text>
+        <Text style={{ ...typography.h4, fontFamily: fonts.bold, fontWeight: '700', color: colors.text.inverse }}>{label}</Text>
       </LinearGradient>
     </AnimatedPressable>
   );

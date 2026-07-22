@@ -68,27 +68,15 @@ export function useManageBilling() {
 
 // ─── Feature flag helpers ─────────────────────────────────────────────────────
 
-export function useHasFeature(feature: keyof PlanFeatures): boolean {
-  const { data } = useSubscription();
-  if (!data) return false;
-  const val = data.features[feature];
-  if (typeof val === 'boolean') return val;
-  if (typeof val === 'number') return val !== 0;
-  return false;
+export function useHasFeature(_feature: keyof PlanFeatures): boolean {
+  return true;
 }
 
 export function useIsAtLimit(
-  type: 'employees' | 'shifts',
-  currentCount: number
+  _type: 'employees' | 'shifts',
+  _currentCount: number
 ): boolean {
-  const { data } = useSubscription();
-  if (!data) return false;
-  const limit =
-    type === 'employees'
-      ? data.features.maxEmployees
-      : data.features.maxShiftsPerMonth;
-  if (limit === -1) return false;
-  return currentCount >= limit;
+  return false;
 }
 
 export function usePlanTier(): PlanTier {

@@ -92,15 +92,21 @@ export const radius = {
   full: 999,
 } as const;
 
+export const fonts = {
+  semibold: 'Manrope_600SemiBold',
+  bold: 'Manrope_700Bold',
+  extrabold: 'Manrope_800ExtraBold',
+} as const;
+
 export const typography = {
-  display: { fontSize: 36, fontWeight: '800' as const, letterSpacing: -1.6 },
-  h1: { fontSize: 30, fontWeight: '800' as const, letterSpacing: -1.1 },
-  h2: { fontSize: 24, fontWeight: '700' as const, letterSpacing: -0.7 },
-  h3: { fontSize: 18, fontWeight: '700' as const, letterSpacing: -0.3 },
-  h4: { fontSize: 16, fontWeight: '600' as const, letterSpacing: -0.1 },
+  display: { fontFamily: fonts.extrabold, fontSize: 36, fontWeight: '800' as const, letterSpacing: -1.6 },
+  h1: { fontFamily: fonts.extrabold, fontSize: 30, fontWeight: '800' as const, letterSpacing: -1.1 },
+  h2: { fontFamily: fonts.bold, fontSize: 24, fontWeight: '700' as const, letterSpacing: -0.7 },
+  h3: { fontFamily: fonts.bold, fontSize: 18, fontWeight: '700' as const, letterSpacing: -0.3 },
+  h4: { fontFamily: fonts.semibold, fontSize: 16, fontWeight: '600' as const, letterSpacing: -0.1 },
   body: { fontSize: 15, fontWeight: '400' as const, lineHeight: 23 },
   bodySmall: { fontSize: 13, fontWeight: '400' as const, lineHeight: 19 },
-  label: { fontSize: 11, fontWeight: '700' as const, letterSpacing: 0.9, textTransform: 'uppercase' as const },
+  label: { fontFamily: fonts.bold, fontSize: 11, fontWeight: '700' as const, letterSpacing: 0.9, textTransform: 'uppercase' as const },
   caption: { fontSize: 12, fontWeight: '500' as const, letterSpacing: 0.2 },
 } as const;
 
@@ -163,4 +169,13 @@ export const layout = {
   screenPaddingTop: 12,
   cardGap: 12,
   sectionGap: 24,
+} as const;
+
+export const motion = {
+  duration: { fast: 150, base: 220, slow: 300, exitFactor: 0.65 },
+  spring: {
+    press: { damping: 18, stiffness: 320, mass: 0.6 },
+    entrance: { damping: 16, stiffness: 180 },
+  },
+  stagger: { step: 40, max: 10 },
 } as const;

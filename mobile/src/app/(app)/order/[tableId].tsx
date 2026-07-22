@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -7,6 +7,9 @@ import { Minus, Plus, X } from 'lucide-react-native';
 import { ScreenScroll } from '@/components/app-shell';
 import { PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { SurfaceCard } from '@/components/cards';
+import { StaggerItem } from '@/components/ui/motion';
+import { ScalePressable } from '@/components/ui/pressable';
+import { CardListSkeleton, HeroSkeleton } from '@/components/ui/skeletons';
 import { api } from '@/lib/api/api';
 import { showError, showSuccess } from '@/lib/toast';
 import { colors, radius, spacing, typography } from '@/theme';
@@ -18,7 +21,7 @@ export default function TableOrderScreen() {
   const [showPaymentMethods, setShowPaymentMethods] = useState(false);
   const [showCancelOrder, setShowCancelOrder] = useState(false);
 
-  const { data: order, isLoading } = useQuery({
+  const { data: order, isLoading, isRefetching, refetch } = useQuery({
     queryKey: ['order', tableId],
     queryFn: () => api.post<PosOrder>('/api/orders', { tableId }),
     enabled: Boolean(tableId),
@@ -32,6 +35,7 @@ export default function TableOrderScreen() {
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['order', tableId] });
     queryClient.invalidateQueries({ queryKey: ['tables'] });
+    queryClient.invalidateQueries({ queryKey: ['kitchen-orders'] });
   }, [queryClient, tableId]);
 
   const addItem = useMutation({
@@ -111,8 +115,11 @@ export default function TableOrderScreen() {
 
   if (isLoading || !order) {
     return (
-      <ScreenScroll title="Order" subtitle="Loading..." leftSlot={<Pressable onPress={() => router.back()}><X color={colors.text.secondary} size={22} /></Pressable>}>
-        <ActivityIndicator color={colors.brand.primary} />
+      <ScreenScroll title="Order" subtitle="Loading..." leftSlot={<ScalePressable onPress={() => router.back()} scale={0.9}><X color={colors.text.secondary} size={22} /></ScalePressable>}>
+        <View style={{ gap: spacing.lg }}>
+          <HeroSkeleton />
+          <CardListSkeleton count={4} />
+        </View>
       </ScreenScroll>
     );
   }
@@ -121,8 +128,9 @@ export default function TableOrderScreen() {
     <ScreenScroll
       title={`Table ${order.table?.number ?? ''}`}
       subtitle={`$${order.totalAmount.toFixed(2)} total`}
-      leftSlot={<Pressable onPress={() => router.back()} testID="order-back"><X color={colors.text.secondary} size={22} /></Pressable>}
+      leftSlot={<ScalePressable onPress={() => router.back()} scale={0.9} testID="order-back"><X color={colors.text.secondary} size={22} /></ScalePressable>}
       testID="order-screen"
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={colors.brand.gold} />}
     >
       <Modal visible={showPaymentMethods} transparent animationType="fade" onRequestClose={() => setShowPaymentMethods(false)}>
         <Pressable
@@ -142,21 +150,22 @@ export default function TableOrderScreen() {
               { label: 'Card terminal', action: () => payCard.mutate() },
               { label: 'Stripe checkout', action: () => payStripe.mutate() },
             ].map((method) => (
-              <Pressable
+              <ScalePressable
                 key={method.label}
                 onPress={() => {
                   setShowPaymentMethods(false);
                   method.action();
                 }}
+                scale={0.98}
                 style={{ minHeight: 54, justifyContent: 'center', paddingHorizontal: spacing.lg, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border.default, backgroundColor: colors.bg.surface, marginBottom: spacing.sm }}
                 accessibilityRole="button"
               >
                 <Text style={{ ...typography.h4, color: colors.text.primary }}>{method.label}</Text>
-              </Pressable>
+              </ScalePressable>
             ))}
-            <Pressable onPress={() => setShowPaymentMethods(false)} style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center' }}>
+            <ScalePressable onPress={() => setShowPaymentMethods(false)} scale={0.98} style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ ...typography.body, color: colors.text.secondary }}>Cancel</Text>
-            </Pressable>
+            </ScalePressable>
           </Pressable>
         </Pressable>
       </Modal>
@@ -175,22 +184,24 @@ export default function TableOrderScreen() {
         {activeItems.length === 0 ? (
           <Text style={{ ...typography.bodySmall, color: colors.text.tertiary }}>No items yet — add from menu below.</Text>
         ) : (
-          activeItems.map((item) => (
-            <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border.subtle }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ ...typography.body, color: colors.text.primary }}>{item.nameSnapshot}</Text>
-                <Text style={{ ...typography.caption, color: colors.text.tertiary }}>${item.priceSnapshot.toFixed(2)} each</Text>
+          activeItems.map((item, index) => (
+            <StaggerItem key={item.id} index={index}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border.subtle }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ ...typography.body, color: colors.text.primary }}>{item.nameSnapshot}</Text>
+                  <Text style={{ ...typography.caption, color: colors.text.tertiary }}>${item.priceSnapshot.toFixed(2)} each</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                  <ScalePressable onPress={() => item.quantity === 1 ? removeItem.mutate(item.id) : updateQty.mutate({ itemId: item.id, quantity: item.quantity - 1 })} scale={0.9} accessibilityLabel={item.quantity === 1 ? `Remove ${item.nameSnapshot}` : `Decrease ${item.nameSnapshot}`}>
+                    <Minus color={colors.text.secondary} size={16} />
+                  </ScalePressable>
+                  <Text style={{ ...typography.body, color: colors.text.primary }}>{item.quantity}</Text>
+                  <ScalePressable onPress={() => updateQty.mutate({ itemId: item.id, quantity: item.quantity + 1 })} scale={0.9} accessibilityLabel={`Increase ${item.nameSnapshot}`}>
+                    <Plus color={colors.text.secondary} size={16} />
+                  </ScalePressable>
+                </View>
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                <Pressable onPress={() => item.quantity === 1 ? removeItem.mutate(item.id) : updateQty.mutate({ itemId: item.id, quantity: item.quantity - 1 })} accessibilityLabel={item.quantity === 1 ? `Remove ${item.nameSnapshot}` : `Decrease ${item.nameSnapshot}`}>
-                  <Minus color={colors.text.secondary} size={16} />
-                </Pressable>
-                <Text style={{ ...typography.body, color: colors.text.primary }}>{item.quantity}</Text>
-                <Pressable onPress={() => updateQty.mutate({ itemId: item.id, quantity: item.quantity + 1 })}>
-                  <Plus color={colors.text.secondary} size={16} />
-                </Pressable>
-              </View>
-            </View>
+            </StaggerItem>
           ))
         )}
         <View style={{ marginTop: spacing.md, gap: spacing.xs }}>
@@ -222,9 +233,9 @@ export default function TableOrderScreen() {
       </ScrollView>
 
       <View style={{ gap: spacing.md, paddingBottom: spacing.xxxl }}>
-        {categories?.flatMap((category) =>
-          (category.items ?? []).map((item) => (
-            <Pressable key={item.id} onPress={() => addItem.mutate(item.id)} disabled={addItem.isPending || order.paymentStatus === 'PAID'} testID={`menu-item-${item.id}`}>
+        {categories?.flatMap((category) => category.items ?? []).map((item, index) => (
+          <StaggerItem key={item.id} index={index}>
+            <ScalePressable onPress={() => addItem.mutate(item.id)} disabled={addItem.isPending || order.paymentStatus === 'PAID'} scale={0.98} testID={`menu-item-${item.id}`}>
               <SurfaceCard>
                 <View style={{ flexDirection: 'row', gap: spacing.md }}>
                   {item.photoUrl ? (
@@ -242,9 +253,9 @@ export default function TableOrderScreen() {
                   <Plus color={colors.brand.primary} size={20} />
                 </View>
               </SurfaceCard>
-            </Pressable>
-          )),
-        )}
+            </ScalePressable>
+          </StaggerItem>
+        ))}
       </View>
     </ScreenScroll>
   );

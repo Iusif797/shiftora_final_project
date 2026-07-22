@@ -6,6 +6,8 @@ import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Text, View } from 'react-native';
+import { Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold, useFonts } from '@expo-google-fonts/manrope';
+import { ToastHost } from '@/components/ui/toast';
 import { WifiOff } from 'lucide-react-native';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { useSession } from '@/lib/auth/use-session';
@@ -69,7 +71,7 @@ function RootLayoutNav() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#070711' }} onLayout={() => SplashScreen.hideAsync()}>
+      <View style={{ flex: 1, backgroundColor: colors.bg.base }} onLayout={() => SplashScreen.hideAsync()}>
         <StatusBar style="light" />
       </View>
     );
@@ -78,7 +80,7 @@ function RootLayoutNav() {
   return (
     <View
       className="dark"
-      style={{ flex: 1, backgroundColor: '#070711' }}
+      style={{ flex: 1, backgroundColor: colors.bg.base }}
       onLayout={() => SplashScreen.hideAsync()}
     >
       <StatusBar style="light" />
@@ -86,7 +88,7 @@ function RootLayoutNav() {
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#070711' },
+          contentStyle: { backgroundColor: colors.bg.base },
           animation: 'fade',
         }}
       >
@@ -112,11 +114,20 @@ function RootLayoutNav() {
 }
 
 function RootLayout() {
+  const [fontsReady, fontsError] = useFonts({
+    Manrope_600SemiBold,
+    Manrope_700Bold,
+    Manrope_800ExtraBold,
+  });
+
+  if (!fontsReady && !fontsError) return null;
+
   return (
     <QueryClientProvider client={queryClient}>
       <ErrorBoundary>
         <GestureHandlerRootView style={{ flex: 1 }}>
           <RootLayoutNav />
+          <ToastHost />
         </GestureHandlerRootView>
       </ErrorBoundary>
     </QueryClientProvider>

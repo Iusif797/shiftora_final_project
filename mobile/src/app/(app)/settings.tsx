@@ -7,6 +7,7 @@ import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { Building2, ChevronLeft, LogOut, Shield } from 'lucide-react-native';
 import { ScreenScroll } from '@/components/app-shell';
+import { GeofenceMap } from '@/components/GeofenceMap';
 import { AccentBadge, PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { EmptyState, HighlightCard, SurfaceCard } from '@/components/cards';
 import { api } from '@/lib/api/api';
@@ -28,6 +29,7 @@ export default function Settings() {
   const [timezone, setTimezone] = useState('UTC');
   const [taxPercent, setTaxPercent] = useState('10');
   const [coordinates, setCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [mapRevision, setMapRevision] = useState(0);
 
   const { data: restaurant } = useQuery({
     queryKey: ['my-restaurant'],
@@ -87,6 +89,7 @@ export default function Settings() {
     }
     const result = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
     setCoordinates({ latitude: result.coords.latitude, longitude: result.coords.longitude });
+    setMapRevision((value) => value + 1);
     showSuccess('Location captured', 'Save settings to activate the check-in geofence.');
   };
 
@@ -177,6 +180,9 @@ export default function Settings() {
                   <Text style={{ ...typography.bodySmall, color: colors.text.secondary }}>
                     Check-in geofence: {coordinates ? 'configured (500 m radius)' : 'not configured'}
                   </Text>
+                  {coordinates ? (
+                    <GeofenceMap key={mapRevision} coordinates={coordinates} onChange={setCoordinates} />
+                  ) : null}
                   <SecondaryButton label="Use current restaurant location" onPress={useCurrentLocation} />
                   {coordinates ? <SecondaryButton label="Disable geofence" onPress={() => setCoordinates(null)} /> : null}
                   <PrimaryButton label="Save restaurant settings" onPress={() => updateRestaurant.mutate()} loading={updateRestaurant.isPending} testID="save-restaurant-settings" />

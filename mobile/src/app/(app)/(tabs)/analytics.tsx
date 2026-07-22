@@ -1,11 +1,15 @@
 import { memo, useCallback, useMemo } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { RefreshControl, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Activity, AlertTriangle, Banknote, Sparkles, TrendingUp, Users } from 'lucide-react-native';
 import { ScreenScroll } from '@/components/app-shell';
 import { AccentBadge } from '@/components/buttons';
 import { EmptyState, ErrorState, HighlightCard, MetricCard, SurfaceCard } from '@/components/cards';
 import { PaywallGate } from '@/components/paywall';
+import { MiniProgress } from '@/components/ui/mini-progress';
+import { StaggerItem } from '@/components/ui/motion';
+import { ProgressRing } from '@/components/ui/progress-ring';
+import { CardListSkeleton, HeroSkeleton, MetricGridSkeleton } from '@/components/ui/skeletons';
 import { api } from '@/lib/api/api';
 import { anomalyAppearance, colors, spacing, typography } from '@/theme';
 import { useHasFeature } from '@/lib/use-subscription';
@@ -67,23 +71,23 @@ const staffingAppearance = {
 
 function AnalyticsScreen() {
   const hasAiInsights = useHasFeature('aiInsights');
-  const { data: overview, isLoading, isError, error, refetch } = useQuery({
+  const { data: overview, isLoading, isRefetching, isError, error, refetch } = useQuery({
     queryKey: ['analytics-overview'],
     queryFn: () => api.get<AnalyticsOverview>('/api/analytics/overview'),
   });
-  const { data: employees } = useQuery({
+  const { data: employees, refetch: refetchEmployees } = useQuery({
     queryKey: ['analytics-employees'],
     queryFn: () => api.get<EmployeeStat[]>('/api/analytics/employees'),
   });
-  const { data: insights } = useQuery({
+  const { data: insights, refetch: refetchInsights } = useQuery({
     queryKey: ['analytics-insights'],
     queryFn: () => api.get<AIInsights>('/api/analytics/insights'),
   });
-  const { data: laborCost } = useQuery({
+  const { data: laborCost, refetch: refetchLaborCost } = useQuery({
     queryKey: ['analytics-labor-cost'],
     queryFn: () => api.get<LaborCost>('/api/analytics/labor-cost'),
   });
-  const { data: workloadForecast } = useQuery({
+  const { data: workloadForecast, refetch: refetchForecast } = useQuery({
     queryKey: ['analytics-workload-forecast'],
     queryFn: () => api.get<{ slots: WorkloadSlot[] }>('/api/analytics/workload-forecast'),
   });
@@ -93,6 +97,13 @@ function AnalyticsScreen() {
     [insights?.staffingHealth]
   );
   const handleRetry = useCallback(() => refetch(), [refetch]);
+  const handleRefresh = useCallback(() => {
+    refetch();
+    refetchEmployees();
+    refetchInsights();
+    refetchLaborCost();
+    refetchForecast();
+  }, [refetch, refetchEmployees, refetchInsights, refetchLaborCost, refetchForecast]);
   const shortageSlots = useMemo(
     () => workloadForecast?.slots?.filter((s) => s.shortage > 0).slice(0, 5) ?? [],
     [workloadForecast?.slots]
@@ -104,14 +115,21 @@ function AnalyticsScreen() {
   );
 
   return (
-    <ScreenScroll title="Analytics" subtitle="AI-powered insights and performance" testID="analytics-scroll">
+    <ScreenScroll
+      title="Analytics"
+      subtitle="AI-powered insights and performance"
+      testID="analytics-scroll"
+      refreshControl={
+        <RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} tintColor={colors.brand.gold} />
+      }
+    >
       <View testID="analytics-screen">
         {isLoading ? (
-          <ActivityIndicator
-            color={colors.brand.primary}
-            style={{ marginTop: spacing.xxxl }}
-            testID="analytics-loading"
-          />
+          <View style={{ gap: spacing.lg }} testID="analytics-loading">
+            <HeroSkeleton />
+            <MetricGridSkeleton rows={2} />
+            <CardListSkeleton count={3} />
+          </View>
         ) : null}
 
         {isError ? (
@@ -124,59 +142,85 @@ function AnalyticsScreen() {
 
         {!isError && !isLoading ? (
           <>
-            <PaywallGate locked={!hasAiInsights} requiredPlan="pro" featureLabel="AI staffing insights">
-            {insights ? (
-          <HighlightCard>
-            <AccentBadge label="Staffing health" color={health.color} tint={health.tint} />
-            <Text style={{ ...typography.h2, color: colors.text.primary, marginTop: spacing.lg, textTransform: 'capitalize' }}>
-              {insights.staffingHealth}
-            </Text>
-            <Text style={{ ...typography.body, color: colors.text.secondary, marginTop: spacing.sm }}>
-              Average hours and attendance are being tracked in real time for leadership decisions.
-            </Text>
-          </HighlightCard>
-        ) : null}
-            </PaywallGate>
+            <StaggerItem index={0}>
+              <PaywallGate locked={!hasAiInsights} requiredPlan="pro" featureLabel="AI staffing insights">
+                {insights ? (
+                  <HighlightCard>
+                    <AccentBadge label="Staffing health" color={health.color} tint={health.tint} />
+                    <Text style={{ ...typography.h2, color: colors.text.primary, marginTop: spacing.lg, textTransform: 'capitalize' }}>
+                      {insights.staffingHealth}
+                    </Text>
+                    <Text style={{ ...typography.body, color: colors.text.secondary, marginTop: spacing.sm }}>
+                      Average hours and attendance are being tracked in real time for leadership decisions.
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.lg }}>
+                      <ProgressRing
+                        value={insights.metrics.attendanceRate}
+                        size={56}
+                        strokeWidth={6}
+                        color={health.color}
+                        testID="analytics-attendance-ring"
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ ...typography.h4, color: colors.text.primary }}>Attendance rate</Text>
+                        <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: 2 }}>
+                          {insights.metrics.avgHoursPerEmployee}h avg per employee
+                        </Text>
+                      </View>
+                    </View>
+                  </HighlightCard>
+                ) : null}
+              </PaywallGate>
+            </StaggerItem>
 
-        <View style={{ marginTop: spacing.xl, flexDirection: 'row', gap: spacing.md }}>
-          <MetricCard label="Hours worked" value={overview?.totalHoursWorked ?? 0} icon={Activity} color={colors.brand.primary} />
-          <MetricCard
-            label="Attendance"
-            value={`${overview?.attendanceRate ?? 0}%`}
-            icon={TrendingUp}
-            color={colors.success.base}
-          />
-        </View>
-        <View style={{ marginTop: spacing.md, flexDirection: 'row', gap: spacing.md }}>
-          <MetricCard label="Active staff" value={overview?.activeEmployeesCount ?? 0} icon={Users} color={colors.brand.gold} />
-          <MetricCard label="Alerts" value={overview?.anomalyCount ?? 0} icon={AlertTriangle} color={colors.danger.base} />
-        </View>
+        <StaggerItem index={1} style={{ marginTop: spacing.xl }}>
+          <View style={{ flexDirection: 'row', gap: spacing.md }}>
+            <MetricCard label="Hours worked" value={overview?.totalHoursWorked ?? 0} icon={Activity} color={colors.brand.primary} />
+            <MetricCard
+              label="Attendance"
+              value={`${overview?.attendanceRate ?? 0}%`}
+              icon={TrendingUp}
+              color={colors.success.base}
+            />
+          </View>
+        </StaggerItem>
+        <StaggerItem index={2} style={{ marginTop: spacing.md }}>
+          <View style={{ flexDirection: 'row', gap: spacing.md }}>
+            <MetricCard label="Active staff" value={overview?.activeEmployeesCount ?? 0} icon={Users} color={colors.brand.gold} />
+            <MetricCard label="Alerts" value={overview?.anomalyCount ?? 0} icon={AlertTriangle} color={colors.danger.base} />
+          </View>
+        </StaggerItem>
 
         {(laborCost?.today !== undefined || laborCost?.week !== undefined) ? (
-          <View style={{ marginTop: spacing.xl, gap: spacing.md }}>
-            <Text style={{ ...typography.h3, color: colors.text.primary }}>Cost of labor</Text>
-            <View style={{ flexDirection: 'row', gap: spacing.md }}>
-              <MetricCard
-                label="Today"
-                value={`$${(laborCost?.today ?? 0).toFixed(2)}`}
-                icon={Banknote}
-                color={colors.success.base}
-              />
-              <MetricCard
-                label="This week"
-                value={`$${(laborCost?.week ?? 0).toFixed(2)}`}
-                icon={Banknote}
-                color={colors.brand.gold}
-              />
+          <StaggerItem index={3} style={{ marginTop: spacing.xl }}>
+            <View style={{ gap: spacing.md }}>
+              <Text style={{ ...typography.h3, color: colors.text.primary }}>Cost of labor</Text>
+              <View style={{ flexDirection: 'row', gap: spacing.md }}>
+                <MetricCard
+                  label="Today"
+                  value={`$${(laborCost?.today ?? 0).toFixed(2)}`}
+                  icon={Banknote}
+                  color={colors.success.base}
+                />
+                <MetricCard
+                  label="This week"
+                  value={`$${(laborCost?.week ?? 0).toFixed(2)}`}
+                  icon={Banknote}
+                  color={colors.brand.gold}
+                />
+              </View>
             </View>
-          </View>
+          </StaggerItem>
         ) : null}
 
         {shortageSlots.length ? (
           <View style={{ marginTop: spacing.xl, gap: spacing.md }}>
-            <Text style={{ ...typography.h3, color: colors.text.primary }}>Staffing forecast</Text>
+            <StaggerItem index={4}>
+              <Text style={{ ...typography.h3, color: colors.text.primary }}>Staffing forecast</Text>
+            </StaggerItem>
             {shortageSlots.map((slot, i) => (
-                <SurfaceCard key={i}>
+              <StaggerItem key={`${slot.day}-${slot.start}`} index={5 + i}>
+                <SurfaceCard>
                   <Text style={{ ...typography.h4, color: colors.text.primary }}>
                     {slot.day} {slot.start}-{slot.end}
                   </Text>
@@ -184,13 +228,14 @@ function AnalyticsScreen() {
                     Short {slot.shortage} staff (need {slot.needed}, have {slot.assigned})
                   </Text>
                 </SurfaceCard>
-              ))}
+              </StaggerItem>
+            ))}
           </View>
         ) : null}
 
         {insights?.trends?.length ? (
           <View style={{ marginTop: spacing.xl, gap: spacing.md }}>
-            {insights.trends.slice(0, 3).map((trend) => {
+            {insights.trends.slice(0, 3).map((trend, index) => {
               const appearance =
                 trend.severity === 'success'
                   ? anomalyAppearance.LOW
@@ -199,17 +244,19 @@ function AnalyticsScreen() {
                     : { color: colors.info.base, tint: colors.info.muted };
 
               return (
-                <SurfaceCard key={trend.title}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ ...typography.h4, color: colors.text.primary }}>{trend.title}</Text>
-                      <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: 4 }}>
-                        {trend.description}
-                      </Text>
+                <StaggerItem key={trend.title} index={5 + index}>
+                  <SurfaceCard>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ ...typography.h4, color: colors.text.primary }}>{trend.title}</Text>
+                        <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: 4 }}>
+                          {trend.description}
+                        </Text>
+                      </View>
+                      <AccentBadge label={trend.severity} color={appearance.color} tint={appearance.tint} />
                     </View>
-                    <AccentBadge label={trend.severity} color={appearance.color} tint={appearance.tint} />
-                  </View>
-                </SurfaceCard>
+                  </SurfaceCard>
+                </StaggerItem>
               );
             })}
           </View>
@@ -217,48 +264,50 @@ function AnalyticsScreen() {
 
         {insights?.recommendations?.length ? (
           <View style={{ marginTop: spacing.xl, gap: spacing.md }}>
-            {insights.recommendations.slice(0, 3).map((recommendation) => (
-              <SurfaceCard key={recommendation.id}>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md }}>
-                  <Sparkles color={colors.brand.gold} size={18} strokeWidth={1.8} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ ...typography.h4, color: colors.text.primary }}>{recommendation.title}</Text>
-                    <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: 4 }}>
-                      {recommendation.action}
-                    </Text>
+            {insights.recommendations.slice(0, 3).map((recommendation, index) => (
+              <StaggerItem key={recommendation.id} index={6 + index}>
+                <SurfaceCard>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md }}>
+                    <Sparkles color={colors.brand.gold} size={18} strokeWidth={1.8} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ ...typography.h4, color: colors.text.primary }}>{recommendation.title}</Text>
+                      <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: 4 }}>
+                        {recommendation.action}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-              </SurfaceCard>
+                </SurfaceCard>
+              </StaggerItem>
             ))}
           </View>
         ) : null}
 
         {sortedEmployees.length ? (
           <View style={{ marginTop: spacing.xl, gap: spacing.md }}>
-            <Text style={{ ...typography.h3, color: colors.text.primary }}>Punctuality</Text>
-            {sortedEmployees.map((employee) => (
-                <SurfaceCard key={employee.id}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Text style={{ ...typography.h4, color: colors.text.primary }}>{employee.user.name}</Text>
-                    <Text
-                      style={{
-                        ...typography.h4,
-                        color:
-                          (employee.punctualityScore ?? 100) >= 90
-                            ? colors.success.base
-                            : (employee.punctualityScore ?? 0) >= 70
-                              ? colors.warning.base
-                              : colors.danger.base,
-                      }}
-                    >
-                      {employee.punctualityScore ?? 100}%
+            <StaggerItem index={6}>
+              <Text style={{ ...typography.h3, color: colors.text.primary }}>Punctuality</Text>
+            </StaggerItem>
+            {sortedEmployees.map((employee, index) => {
+              const score = employee.punctualityScore ?? 100;
+              const scoreColor =
+                score >= 90 ? colors.success.base : score >= 70 ? colors.warning.base : colors.danger.base;
+              return (
+                <StaggerItem key={employee.id} index={7 + index}>
+                  <SurfaceCard>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text style={{ ...typography.h4, color: colors.text.primary }}>{employee.user.name}</Text>
+                      <Text style={{ ...typography.h4, color: scoreColor }}>{score}%</Text>
+                    </View>
+                    <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: 4 }}>
+                      {employee.totalHours}h worked · {employee.completedShifts} shifts
                     </Text>
-                  </View>
-                  <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: 4 }}>
-                    {employee.totalHours}h worked · {employee.completedShifts} shifts
-                  </Text>
-                </SurfaceCard>
-              ))}
+                    <View style={{ marginTop: spacing.md }}>
+                      <MiniProgress value={score} color={scoreColor} />
+                    </View>
+                  </SurfaceCard>
+                </StaggerItem>
+              );
+            })}
           </View>
         ) : (
           <View style={{ marginTop: spacing.xl }}>

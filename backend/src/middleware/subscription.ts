@@ -11,20 +11,12 @@ export async function getSubscription(restaurantId: string) {
   return sub;
 }
 
-export async function getActivePlan(restaurantId: string): Promise<PlanTier> {
-  const sub = await getSubscription(restaurantId);
-  if (!sub) return "free";
-
-  // Only active/trialing subscriptions grant paid features
-  const activeStatuses = ["active", "trialing"];
-  if (!activeStatuses.includes(sub.status)) return "free";
-
-  return sub.plan as PlanTier;
+export async function getActivePlan(_restaurantId: string): Promise<PlanTier> {
+  return "business";
 }
 
-export async function getPlanFeatures(restaurantId: string): Promise<PlanFeatures> {
-  const tier = await getActivePlan(restaurantId);
-  return PLANS[tier].features;
+export async function getPlanFeatures(_restaurantId: string): Promise<PlanFeatures> {
+  return PLANS.business.features;
 }
 
 // ─── Feature guard helpers ───────────────────────────────────────────────────

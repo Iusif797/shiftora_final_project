@@ -65,7 +65,6 @@ const request = async <T>(
 
   if (response.status === 402 && json && typeof json === "object" && "error" in json) {
     const err = json as { error?: { message?: string; code?: string } };
-    router.push("/(app)/billing");
     throw new SubscriptionError(
       err.error?.message ?? "Subscription upgrade required",
       err.error?.code ?? "SUBSCRIPTION_REQUIRED",

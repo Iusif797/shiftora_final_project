@@ -60,6 +60,7 @@ export interface PosOrder {
   taxAmount: number;
   totalAmount: number;
   notes?: string | null;
+  createdAt: string;
   items: PosOrderItem[];
   table?: RestaurantTable;
 }

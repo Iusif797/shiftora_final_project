@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -9,6 +10,9 @@ import { ScreenScroll } from '@/components/app-shell';
 import { ShiftEditModal } from '@/components/shift-edit-modal';
 import { AccentBadge, PrimaryButton } from '@/components/buttons';
 import { EmptyState, SurfaceCard } from '@/components/cards';
+import { StaggerItem, enterZoom } from '@/components/ui/motion';
+import { ScalePressable } from '@/components/ui/pressable';
+import { CardListSkeleton } from '@/components/ui/skeletons';
 import { api } from '@/lib/api/api';
 import { showError, showSuccess } from '@/lib/toast';
 import { useSession } from '@/lib/auth/use-session';
@@ -33,9 +37,16 @@ function ShiftCard({ shift, onShowQR, onEdit }: { shift: Shift; onShowQR?: (s: S
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
             {onEdit ? (
-              <Pressable onPress={() => onEdit(shift)} style={{ padding: spacing.xs }} testID={`edit-shift-${shift.id}`}>
+              <ScalePressable
+                onPress={() => onEdit(shift)}
+                scale={0.9}
+                hitSlop={8}
+                style={{ padding: spacing.xs }}
+                accessibilityLabel="Edit shift"
+                testID={`edit-shift-${shift.id}`}
+              >
                 <Pencil color={colors.text.secondary} size={16} strokeWidth={2} />
-              </Pressable>
+              </ScalePressable>
             ) : null}
             <AccentBadge label={shift.status.toLowerCase()} color={appearance.color} tint={appearance.tint} />
           </View>
@@ -254,9 +265,11 @@ function CreateShiftModal({
                     {employees.map((emp) => {
                       const isSelected = assignedEmployeeIds.includes(emp.id);
                       return (
-                        <Pressable
+                        <ScalePressable
                           key={emp.id}
                           onPress={() => toggleEmployee(emp.id)}
+                          scale={0.98}
+                          testID={`assign-employee-${emp.id}`}
                           style={{
                             flexDirection: 'row',
                             alignItems: 'center',
@@ -281,7 +294,7 @@ function CreateShiftModal({
                               backgroundColor: isSelected ? colors.brand.primaryLight : 'transparent',
                             }}
                           />
-                        </Pressable>
+                        </ScalePressable>
                       );
                     })}
                   </View>
@@ -325,7 +338,7 @@ export default function Shifts() {
     }
   }, [create, isManager]);
 
-  const { data: shifts, isLoading } = useQuery({
+  const { data: shifts, isLoading, isRefetching: refreshingShifts, refetch: refetchShifts } = useQuery({
     queryKey: ['shifts'],
     queryFn: () => api.get<Shift[]>('/api/shifts'),
     enabled: isManager,
@@ -348,7 +361,7 @@ export default function Shifts() {
     onError: (err) => showError('Generation failed', err.message),
   });
 
-  const { data: myShifts, isLoading: loadingMy } = useQuery({
+  const { data: myShifts, isLoading: loadingMy, isRefetching: refreshingMy, refetch: refetchMy } = useQuery({
     queryKey: ['my-shifts'],
     queryFn: () => api.get<ShiftAssignment[]>('/api/shifts/my'),
     enabled: !isManager,
@@ -362,15 +375,28 @@ export default function Shifts() {
         title="Schedule"
         subtitle={isManager ? `${shifts?.length ?? 0} scheduled` : `${myShifts?.length ?? 0} assigned`}
         testID="shifts-scroll"
+        refreshControl={
+          <RefreshControl
+            refreshing={isManager ? refreshingShifts : refreshingMy}
+            onRefresh={() => (isManager ? refetchShifts() : refetchMy())}
+            tintColor={colors.brand.gold}
+          />
+        }
       >
         <View testID="shifts-screen">
-          {loading ? <ActivityIndicator color={colors.brand.primary} style={{ marginTop: spacing.xxxl }} testID="shifts-loading" /> : null}
+          {loading ? (
+            <View testID="shifts-loading">
+              <CardListSkeleton count={4} />
+            </View>
+          ) : null}
 
           {isManager ? (
             shifts?.length ? (
               <View style={{ gap: spacing.md, paddingBottom: 0 }}>
-                {shifts.map((shift) => (
-                  <ShiftCard key={shift.id} shift={shift} onShowQR={setQrShift} onEdit={setEditShift} />
+                {shifts.map((shift, index) => (
+                  <StaggerItem key={shift.id} index={index}>
+                    <ShiftCard shift={shift} onShowQR={setQrShift} onEdit={setEditShift} />
+                  </StaggerItem>
                 ))}
               </View>
             ) : !loading ? (
@@ -379,12 +405,19 @@ export default function Shifts() {
                 title="No shifts yet"
                 description="Create your first shift to start planning the week."
                 color={colors.brand.primary}
+                action={{ label: 'Create shift', onPress: () => setShowCreate(true), testID: 'shifts-empty-create' }}
                 testID="shifts-empty"
               />
             ) : null
           ) : myShifts?.length ? (
             <View style={{ gap: spacing.md }}>
-              {myShifts.map((assignment) => (assignment.shift ? <ShiftCard key={assignment.id} shift={assignment.shift} /> : null))}
+              {myShifts.map((assignment, index) =>
+                assignment.shift ? (
+                  <StaggerItem key={assignment.id} index={index}>
+                    <ShiftCard shift={assignment.shift} />
+                  </StaggerItem>
+                ) : null,
+              )}
             </View>
           ) : !loading ? (
             <EmptyState
@@ -399,8 +432,11 @@ export default function Shifts() {
       </ScreenScroll>
 
       {isManager ? (
-        <View style={{ position: 'absolute', bottom: 130, right: 20, flexDirection: 'row', gap: 12 }}>
-          <Pressable
+        <Animated.View
+          entering={enterZoom(2)}
+          style={{ position: 'absolute', bottom: 130, right: 20, flexDirection: 'row', gap: 12 }}
+        >
+          <ScalePressable
             onPress={() => {
               if (!canAutoGenerate) {
                 showError('Pro feature', 'Auto-generate schedule requires a Pro plan.');
@@ -409,6 +445,9 @@ export default function Shifts() {
               generateMutation.mutate();
             }}
             disabled={generateMutation.isPending}
+            scale={0.9}
+            haptic="medium"
+            accessibilityLabel="Auto-generate schedule"
             style={{
               width: 56,
               height: 56,
@@ -429,9 +468,12 @@ export default function Shifts() {
             ) : (
               <Sparkles color="#000000" size={24} strokeWidth={2} />
             )}
-          </Pressable>
-          <Pressable
+          </ScalePressable>
+          <ScalePressable
             onPress={() => setShowCreate(true)}
+            scale={0.9}
+            haptic="medium"
+            accessibilityLabel="Create shift"
             style={{
               width: 56,
               height: 56,
@@ -448,8 +490,8 @@ export default function Shifts() {
             testID="new-shift-button"
           >
             <Plus color="#000000" size={24} strokeWidth={2.5} />
-          </Pressable>
-        </View>
+          </ScalePressable>
+        </Animated.View>
       ) : null}
 
       <CreateShiftModal

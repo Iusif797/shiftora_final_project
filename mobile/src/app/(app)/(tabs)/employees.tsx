@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, RefreshControl, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Briefcase, UserPlus, Users } from 'lucide-react-native';
 import { router, type Href } from 'expo-router';
@@ -7,6 +7,9 @@ import { AppBackground, ScreenHeader } from '@/components/app-shell';
 import { EmployeeEditModal } from '@/components/employee-edit-modal';
 import { PrimaryButton, AccentBadge } from '@/components/buttons';
 import { EmptyState, ErrorState, SurfaceCard } from '@/components/cards';
+import { StaggerItem } from '@/components/ui/motion';
+import { ScalePressable } from '@/components/ui/pressable';
+import { CardListSkeleton } from '@/components/ui/skeletons';
 import { api } from '@/lib/api/api';
 import { useSession } from '@/lib/auth/use-session';
 import { getColorForId, getInitials } from '@/lib/formatters';
@@ -19,7 +22,7 @@ const EmployeeCard = memo(function EmployeeCard({ employee, onPress }: { employe
   const accent = getColorForId(employee.id);
   return (
     <SurfaceCard>
-      <Pressable onPress={onPress} disabled={!onPress}>
+      <ScalePressable onPress={onPress} disabled={!onPress} scale={0.98}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }} testID={`employee-card-${employee.id}`}>
         <View
           style={{
@@ -53,7 +56,7 @@ const EmployeeCard = memo(function EmployeeCard({ employee, onPress }: { employe
           ) : null}
         </View>
       </View>
-      </Pressable>
+      </ScalePressable>
     </SurfaceCard>
   );
 });
@@ -63,7 +66,7 @@ function EmployeesScreen() {
   const role = (session?.user as AppUser | undefined)?.role ?? 'employee';
   const canManage = role === 'manager' || role === 'owner';
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
-  const { data, isLoading, isError, error, refetch } = useQuery({
+  const { data, isLoading, isRefetching, isError, error, refetch } = useQuery({
     queryKey: ['employees'],
     queryFn: () =>
       api.get<PaginatedResponse<Employee>>(`/api/employees?page=1&limit=${PAGE_SIZE}`),
@@ -80,8 +83,10 @@ function EmployeesScreen() {
   const handleRetry = useCallback(() => refetch(), [refetch]);
 
   const renderItem = useCallback(
-    ({ item }: { item: Employee }) => (
-      <EmployeeCard employee={item} onPress={canManage ? () => setEditEmployee(item) : undefined} />
+    ({ item, index }: { item: Employee; index: number }) => (
+      <StaggerItem index={index} style={index > 0 ? { marginTop: spacing.md } : undefined}>
+        <EmployeeCard employee={item} onPress={canManage ? () => setEditEmployee(item) : undefined} />
+      </StaggerItem>
     ),
     [canManage]
   );
@@ -95,7 +100,9 @@ function EmployeesScreen() {
         </>
       ) : null}
       {isLoading ? (
-        <ActivityIndicator color={colors.brand.primary} style={{ marginTop: spacing.xxxl }} testID="employees-loading" />
+        <View testID="employees-loading">
+          <CardListSkeleton count={4} />
+        </View>
       ) : null}
     </View>
   );
@@ -148,6 +155,9 @@ function EmployeesScreen() {
         ListHeaderComponent={listHeader}
         ListFooterComponent={listFooter}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: spacing.md, paddingBottom: 100 }}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={colors.brand.gold} />
+        }
         testID="employees-list"
       />
       <EmployeeEditModal

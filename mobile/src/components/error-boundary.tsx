@@ -58,7 +58,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <AlertTriangle color={colors.danger.base} size={36} strokeWidth={2} />
           </View>
           <Text style={{ ...typography.h3, color: colors.text.primary, textAlign: 'center' }}>
-            Что-то пошло не так
+            Something went wrong
           </Text>
           <Text
             style={{
@@ -71,7 +71,7 @@ export class ErrorBoundary extends Component<Props, State> {
           >
             {this.state.error.message}
           </Text>
-          <PrimaryButton label="Перезапустить" onPress={this.handleRestart} testID="error-restart-button" />
+          <PrimaryButton label="Restart" onPress={this.handleRestart} testID="error-restart-button" />
         </View>
       );
     }

@@ -1,4 +1,4 @@
-import { ScrollView, Text, View, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import { ScrollView, Text, View, StyleSheet, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -16,6 +16,9 @@ import {
   Clock,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { StaggerItem } from '@/components/ui/motion';
+import { ScalePressable } from '@/components/ui/pressable';
+import { CardListSkeleton } from '@/components/ui/skeletons';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
 import { useSubscription, usePlans, useUpgradePlan, useManageBilling, SUBSCRIPTION_QUERY_KEY } from '@/lib/use-subscription';
 import type { PlanOption, PlanTier } from '@/types/app';
@@ -88,14 +91,14 @@ function PlanCard({
   const PlanIcon = visual.Icon;
 
   const featureRows: { label: string; value: boolean | number }[] = [
-    { label: 'Сотрудников', value: plan.features.maxEmployees },
-    { label: 'Смен в месяц', value: plan.features.maxShiftsPerMonth },
-    { label: 'AI-аналитика', value: plan.features.aiInsights },
-    { label: 'AI-генерация смен', value: plan.features.aiShiftGeneration },
-    { label: 'Продвинутая аналитика', value: plan.features.advancedAnalytics },
-    { label: 'Несколько менеджеров', value: plan.features.multipleManagers },
-    { label: 'Алерты об аномалиях', value: plan.features.anomalyAlerts },
-    { label: 'Экспорт отчётов', value: plan.features.exportReports },
+    { label: 'Employees', value: plan.features.maxEmployees },
+    { label: 'Shifts per month', value: plan.features.maxShiftsPerMonth },
+    { label: 'AI insights', value: plan.features.aiInsights },
+    { label: 'AI shift generation', value: plan.features.aiShiftGeneration },
+    { label: 'Advanced analytics', value: plan.features.advancedAnalytics },
+    { label: 'Multiple managers', value: plan.features.multipleManagers },
+    { label: 'Anomaly alerts', value: plan.features.anomalyAlerts },
+    { label: 'Report exports', value: plan.features.exportReports },
   ];
 
   return (
@@ -123,7 +126,7 @@ function PlanCard({
             <Text style={styles.planName}>{plan.name}</Text>
             {plan.isCurrent ? (
               <View style={[styles.currentBadge, { backgroundColor: `${visual.glow}20`, borderColor: `${visual.glow}40` }]}>
-                <Text style={[styles.currentBadgeText, { color: visual.glow }]}>Текущий</Text>
+                <Text style={[styles.currentBadgeText, { color: visual.glow }]}>Current</Text>
               </View>
             ) : null}
           </View>
@@ -142,14 +145,12 @@ function PlanCard({
 
       {/* CTA */}
       {plan.tier !== 'free' && !plan.isCurrent && plan.priceId ? (
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            onUpgrade(plan.priceId!);
-          }}
+        <ScalePressable
+          onPress={() => onUpgrade(plan.priceId!)}
           disabled={isUpgrading}
+          scale={0.98}
+          haptic="medium"
           testID={`upgrade-button-${plan.tier}`}
-          style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1 }]}
         >
           <LinearGradient
             colors={visual.gradient}
@@ -163,20 +164,20 @@ function PlanCard({
               <>
                 <PlanIcon color="#FFFFFF" size={16} strokeWidth={2.5} />
                 <Text style={styles.ctaText}>
-                  {plan.tier === 'pro' ? 'Перейти на Pro' : 'Перейти на Business'}
+                  {plan.tier === 'pro' ? 'Upgrade to Pro' : 'Upgrade to Business'}
                 </Text>
               </>
             )}
           </LinearGradient>
-        </Pressable>
+        </ScalePressable>
       ) : plan.tier === 'free' && plan.isCurrent ? (
         <View style={styles.freeCta}>
-          <Text style={styles.freeCtaText}>Базовый план — всегда бесплатно</Text>
+          <Text style={styles.freeCtaText}>Base plan — always free</Text>
         </View>
       ) : null}
 
       {plan.tier !== 'free' && !plan.isCurrent ? (
-        <Text style={styles.trialNote}>14 дней бесплатно, без карты</Text>
+        <Text style={styles.trialNote}>14-day free trial, no card required</Text>
       ) : null}
     </View>
   );
@@ -213,20 +214,21 @@ function StatusBanner() {
       <Text style={[styles.statusBannerText, {
         color: isPastDue ? colors.danger.base : isTrialing ? colors.info.base : colors.warning.base
       }]}>
-        {isPastDue ? 'Платёж не прошёл — обновите способ оплаты' : null}
-        {isTrialing && sub.trialEnd ? `Пробный период до ${format(new Date(sub.trialEnd), 'd MMM yyyy')}` : null}
-        {isCanceling && sub.currentPeriodEnd ? `Отмена подписки ${format(new Date(sub.currentPeriodEnd), 'd MMM yyyy')}` : null}
+        {isPastDue ? 'Payment failed — update your payment method' : null}
+        {isTrialing && sub.trialEnd ? `Trial ends ${format(new Date(sub.trialEnd), 'd MMM yyyy')}` : null}
+        {isCanceling && sub.currentPeriodEnd ? `Subscription ends ${format(new Date(sub.currentPeriodEnd), 'd MMM yyyy')}` : null}
       </Text>
-      <Pressable
+      <ScalePressable
         onPress={() => manageBilling.mutate()}
         disabled={manageBilling.isPending}
+        scale={0.9}
       >
         <Text style={[styles.statusBannerLink, {
           color: isPastDue ? colors.danger.base : isTrialing ? colors.info.base : colors.warning.base
         }]}>
-          {manageBilling.isPending ? '...' : 'Управление →'}
+          {manageBilling.isPending ? '...' : 'Manage →'}
         </Text>
-      </Pressable>
+      </ScalePressable>
     </View>
   );
 }
@@ -256,15 +258,16 @@ export default function BillingScreen() {
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
-          <Pressable
+          <ScalePressable
             onPress={() => router.back()}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            scale={0.9}
             style={styles.backBtn}
             testID="billing-back-button"
           >
             <ArrowLeft color={colors.text.primary} size={22} strokeWidth={2} />
-          </Pressable>
-          <Text style={styles.headerTitle}>Подписка</Text>
+          </ScalePressable>
+          <Text style={styles.headerTitle}>Subscription</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -276,13 +279,13 @@ export default function BillingScreen() {
           {success === '1' ? (
             <View style={styles.successBanner}>
               <Check color={colors.success.base} size={18} strokeWidth={2.5} />
-              <Text style={styles.successBannerText}>Подписка активирована!</Text>
+              <Text style={styles.successBannerText}>Subscription activated!</Text>
             </View>
           ) : null}
           {canceled === '1' ? (
             <View style={styles.canceledBanner}>
               <X color={colors.text.secondary} size={16} strokeWidth={2} />
-              <Text style={styles.canceledBannerText}>Оплата отменена</Text>
+              <Text style={styles.canceledBannerText}>Payment canceled</Text>
             </View>
           ) : null}
 
@@ -296,9 +299,9 @@ export default function BillingScreen() {
               end={{ x: 0.5, y: 1 }}
               style={styles.heroBg}
             />
-            <Text style={styles.heroTitle}>Разблокируйте полный потенциал</Text>
+            <Text style={styles.heroTitle}>Unlock the full potential</Text>
             <Text style={styles.heroSubtitle}>
-              Выберите план под ваш ресторан и масштабируйтесь без ограничений
+              Choose the right plan for your restaurant and scale without limits
             </Text>
           </View>
 
@@ -307,37 +310,38 @@ export default function BillingScreen() {
             <View style={styles.periodInfo}>
               <Clock color={colors.text.tertiary} size={14} strokeWidth={2} />
               <Text style={styles.periodInfoText}>
-                Следующее списание: {format(new Date(sub.currentPeriodEnd), 'd MMM yyyy')}
+                Next billing date: {format(new Date(sub.currentPeriodEnd), 'd MMM yyyy')}
               </Text>
             </View>
           ) : null}
 
           {/* Plans */}
           {isLoading ? (
-            <View style={styles.loadingState}>
-              <ActivityIndicator color={colors.text.secondary} />
-              <Text style={styles.loadingText}>Загрузка планов...</Text>
+            <View testID="billing-loading">
+              <CardListSkeleton count={3} />
             </View>
           ) : plans ? (
             <View style={styles.plansGrid}>
-              {plans.map((plan) => (
-                <PlanCard
-                  key={plan.tier}
-                  plan={plan}
-                  onUpgrade={(priceId) => upgradePlan.mutate(priceId)}
-                  isUpgrading={upgradePlan.isPending}
-                />
+              {plans.map((plan, index) => (
+                <StaggerItem key={plan.tier} index={index}>
+                  <PlanCard
+                    plan={plan}
+                    onUpgrade={(priceId) => upgradePlan.mutate(priceId)}
+                    isUpgrading={upgradePlan.isPending}
+                  />
+                </StaggerItem>
               ))}
             </View>
           ) : null}
 
           {/* Manage billing button (for paid users) */}
           {sub && sub.plan !== 'free' && sub.stripeEnabled ? (
-            <Pressable
+            <ScalePressable
               onPress={() => manageBilling.mutate()}
               disabled={manageBilling.isPending}
+              scale={0.98}
               testID="manage-billing-button"
-              style={({ pressed }) => [styles.manageBtn, { opacity: pressed ? 0.7 : 1 }]}
+              style={styles.manageBtn}
             >
               {manageBilling.isPending ? (
                 <ActivityIndicator color={colors.text.secondary} size="small" />
@@ -345,16 +349,16 @@ export default function BillingScreen() {
                 <CreditCard color={colors.text.secondary} size={16} strokeWidth={2} />
               )}
               <Text style={styles.manageBtnText}>
-                {manageBilling.isPending ? 'Открываем...' : 'Управление подпиской и оплатой'}
+                {manageBilling.isPending ? 'Opening...' : 'Manage subscription and billing'}
               </Text>
-            </Pressable>
+            </ScalePressable>
           ) : null}
 
           {/* Stripe not configured notice */}
           {sub && !sub.stripeEnabled ? (
             <View style={styles.stripeNotice}>
               <Text style={styles.stripeNoticeText}>
-                Для активации платных планов необходимо настроить Stripe в настройках сервера.
+                To enable paid plans, configure Stripe in the server settings.
               </Text>
             </View>
           ) : null}
@@ -529,15 +533,6 @@ const styles = StyleSheet.create({
     color: colors.text.tertiary,
     textAlign: 'center',
     marginTop: spacing.sm,
-  },
-  loadingState: {
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.xxl,
-  },
-  loadingText: {
-    ...typography.body,
-    color: colors.text.tertiary,
   },
   manageBtn: {
     flexDirection: 'row',

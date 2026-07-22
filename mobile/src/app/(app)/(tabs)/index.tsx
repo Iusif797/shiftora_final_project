@@ -1,9 +1,12 @@
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { UserCircle } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppBackground } from '@/components/app-shell';
 import { AccentBadge } from '@/components/buttons';
+import { enterFade } from '@/components/ui/motion';
+import { ScalePressable } from '@/components/ui/pressable';
 import { EmployeeDashboard, ManagerDashboard, OwnerDashboard } from '@/components/dashboard';
 import { useSession } from '@/lib/auth/use-session';
 import { getGreeting } from '@/lib/formatters';
@@ -30,7 +33,10 @@ export default function Dashboard() {
           testID="dashboard-screen"
           accessibilityLabel="Dashboard"
         >
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md }}>
+          <Animated.View
+            entering={enterFade()}
+            style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md }}
+          >
             <View style={{ flex: 1 }}>
               <Text style={{ ...typography.bodySmall, color: colors.text.tertiary }}>{getGreeting()}</Text>
               <Text style={{ ...typography.h1, color: colors.text.primary, marginTop: 4 }}>
@@ -38,18 +44,17 @@ export default function Dashboard() {
               </Text>
             </View>
             <View style={{ alignItems: 'flex-end', gap: spacing.sm }}>
-              <Pressable
+              <ScalePressable
                 onPress={() => router.push('/(app)/(tabs)/profile')}
                 hitSlop={10}
-                accessibilityRole="button"
                 accessibilityLabel="Open profile"
                 testID="dashboard-profile-button"
               >
                 <UserCircle color={colors.text.secondary} size={28} strokeWidth={1.8} />
-              </Pressable>
+              </ScalePressable>
               <AccentBadge label={role} color={roleStyle.color} tint={`${roleStyle.color}18`} />
             </View>
-          </View>
+          </Animated.View>
         </View>
 
         {role === 'employee' ? <EmployeeDashboard /> : null}

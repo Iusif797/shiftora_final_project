@@ -1,10 +1,24 @@
 import type { ComponentType, ReactNode } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import type { TextStyle } from 'react-native';
+import { Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { PrimaryButton } from '@/components/buttons';
-import { colors, radius, shadows, spacing, typography } from '@/theme';
+import { PrimaryButton, SecondaryButton } from '@/components/buttons';
+import { AnimatedNumber } from '@/components/ui/animated-number';
+import { enterFade, enterZoom } from '@/components/ui/motion';
+import { ScalePressable } from '@/components/ui/pressable';
+import { colors, fonts, radius, shadows, spacing, typography } from '@/theme';
 
 type IconComponent = ComponentType<{ color: string; size: number; strokeWidth: number }>;
+
+const metricValueStyle: TextStyle = {
+  fontFamily: fonts.extrabold,
+  fontSize: 28,
+  fontWeight: '800',
+  letterSpacing: -0.8,
+  color: colors.text.primary,
+  fontVariant: ['tabular-nums'],
+};
 
 interface CardProps {
   children: ReactNode;
@@ -20,11 +34,18 @@ interface MetricCardProps {
   testID?: string;
 }
 
+interface EmptyStateAction {
+  label: string;
+  onPress: () => void;
+  testID?: string;
+}
+
 interface EmptyStateProps {
   icon: IconComponent;
   title: string;
   description: string;
   color?: string;
+  action?: EmptyStateAction;
   testID?: string;
 }
 
@@ -83,7 +104,11 @@ function MetricCardBody({ label, value, icon: Icon, color, subtitle }: Omit<Metr
       >
         <Icon color={color} size={20} strokeWidth={1.8} />
       </View>
-      <Text style={{ fontSize: 28, fontWeight: '800', letterSpacing: -0.8, color: colors.text.primary, fontVariant: ['tabular-nums'] }}>{value}</Text>
+      {typeof value === 'number' ? (
+        <AnimatedNumber value={value} textStyle={metricValueStyle} />
+      ) : (
+        <Text style={metricValueStyle}>{value}</Text>
+      )}
       <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: 4 }}>{label}</Text>
       {subtitle ? (
         <Text style={{ ...typography.caption, color, marginTop: spacing.xs }}>{subtitle}</Text>
@@ -104,9 +129,9 @@ export function MetricCard({ label, value, icon, color, subtitle, onPress, testI
 
   if (onPress) {
     return (
-      <Pressable onPress={onPress} testID={testID} accessibilityRole="button" style={cardStyle}>
+      <ScalePressable onPress={onPress} testID={testID} style={cardStyle}>
         <MetricCardBody label={label} value={value} icon={icon} color={color} subtitle={subtitle} />
-      </Pressable>
+      </ScalePressable>
     );
   }
 
@@ -128,17 +153,18 @@ export function ErrorState({ message, onRetry, testID }: ErrorStateProps) {
     <SurfaceCard>
       <View style={{ alignItems: 'center', gap: spacing.lg }} testID={testID}>
         <Text style={{ ...typography.body, color: colors.danger.base, textAlign: 'center' }}>{message}</Text>
-        <PrimaryButton label="Повторить" onPress={onRetry} testID="error-retry-button" />
+        <PrimaryButton label="Retry" onPress={onRetry} testID="error-retry-button" />
       </View>
     </SurfaceCard>
   );
 }
 
-export function EmptyState({ icon: Icon, title, description, color = colors.brand.primary, testID }: EmptyStateProps) {
+export function EmptyState({ icon: Icon, title, description, color = colors.brand.primary, action, testID }: EmptyStateProps) {
   return (
     <SurfaceCard>
       <View style={{ alignItems: 'center' }} testID={testID}>
-        <View
+        <Animated.View
+          entering={enterZoom()}
           style={{
             width: 68,
             height: 68,
@@ -152,18 +178,25 @@ export function EmptyState({ icon: Icon, title, description, color = colors.bran
           }}
         >
           <Icon color={color} size={30} strokeWidth={1.7} />
-        </View>
-        <Text style={{ ...typography.h3, color: colors.text.primary, textAlign: 'center' }}>{title}</Text>
-        <Text
-          style={{
-            ...typography.bodySmall,
-            color: colors.text.tertiary,
-            textAlign: 'center',
-            marginTop: spacing.sm,
-          }}
-        >
-          {description}
-        </Text>
+        </Animated.View>
+        <Animated.View entering={enterFade(1)} style={{ alignItems: 'center' }}>
+          <Text style={{ ...typography.h3, color: colors.text.primary, textAlign: 'center' }}>{title}</Text>
+          <Text
+            style={{
+              ...typography.bodySmall,
+              color: colors.text.tertiary,
+              textAlign: 'center',
+              marginTop: spacing.sm,
+            }}
+          >
+            {description}
+          </Text>
+        </Animated.View>
+        {action ? (
+          <Animated.View entering={enterFade(2)} style={{ alignSelf: 'stretch', marginTop: spacing.lg }}>
+            <SecondaryButton label={action.label} onPress={action.onPress} testID={action.testID} />
+          </Animated.View>
+        ) : null}
       </View>
     </SurfaceCard>
   );
