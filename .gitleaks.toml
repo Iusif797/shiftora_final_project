@@ -1,0 +1,19 @@
+# Gitleaks allowlist — pouze prokazatelné ne-tajemství (ukol #68, 2026-08-06).
+# Skutečná tajemství (EXPO_TOKEN, ASC .p8 klíč, keystore) v repu nejsou —
+# žijí v EAS credentials / ~/.config na serverech.
+
+title = "shiftora gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Falešné poplachy: testovací konstanta v CI a veřejné App Store Connect identifikátory"
+regexes = [
+  # CI testovací hodnota BETTER_AUTH_SECRET v .github/workflows/ci.yml — není produkční tajemství
+  '''test-secret-at-least-32-chars-long-xx''',
+  # App Store Connect API Key ID / Issuer ID v mobile/eas.json — identifikátory, ne klíč;
+  # samotný klíč je .p8 soubor mimo repo (ascApiKeyPath)
+  '''U4ZPDU72CX''',
+  '''7b36a191-62bd-4525-a45d-38b877493538''',
+]
