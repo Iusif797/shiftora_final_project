@@ -18,7 +18,8 @@
     "production": {
       "environment": "production",
       "env": {
-        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a,armeabi-v7a"
+        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a,armeabi-v7a",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     }
   },
