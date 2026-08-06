@@ -17,6 +17,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.shiftora.app",
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Shiftora использует камеру для QR-сканирования при отметке явки и для фото при check-in.",
         "NSLocationWhenInUseUsageDescription": "Shiftora использует геолокацию для проверки близости к ресторану при отметке явки.",
         "NSPhotoLibraryUsageDescription": "Shiftora использует доступ к фото для загрузки аватара в профиль."
