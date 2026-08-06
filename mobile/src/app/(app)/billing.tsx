@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
   },
   heroBg: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: radius.xl,
   },
   heroTitle: {

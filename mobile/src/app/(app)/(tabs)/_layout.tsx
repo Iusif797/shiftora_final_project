@@ -147,7 +147,7 @@ export default function TabsLayout() {
 
   return (
     <Tabs
-      tabBar={(props) => <CustomTabBar {...props} />}
+      tabBar={(props) => <CustomTabBar {...(props as unknown as BottomTabBarProps)} />}
       screenOptions={{
         headerShown: false,
       }}
