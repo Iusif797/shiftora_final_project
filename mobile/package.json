@@ -84,7 +84,6 @@
     "expo-manifests": "~57.0.1",
     "expo-mesh-gradient": "~57.0.1",
     "expo-network": "~57.0.1",
-    "expo-network-addons": "~0.7.2",
     "expo-notifications": "~57.0.9",
     "expo-print": "~57.0.1",
     "expo-router": "~57.0.11",
