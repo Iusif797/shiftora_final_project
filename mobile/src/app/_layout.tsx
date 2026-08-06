@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import * as Sentry from '@sentry/react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { Stack } from 'expo-router';
@@ -9,6 +8,7 @@ import { Text, View } from 'react-native';
 import { Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold, useFonts } from '@expo-google-fonts/manrope';
 import { ToastHost } from '@/components/ui/toast';
 import { WifiOff } from 'lucide-react-native';
+import { ConnectionErrorScreen } from '@/components/connection-error';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { useSession } from '@/lib/auth/use-session';
 import { useNetworkStatus } from '@/lib/use-network';
@@ -60,19 +60,26 @@ function OfflineBanner() {
 }
 
 function RootLayoutNav() {
-  const { data: session, isLoading } = useSession();
+  const { data: session, isLoading, isError, refetch, isRefetching } = useSession();
   const user = session?.user as AppUser | undefined;
   const needsOnboarding = !!user && !user.restaurantId;
 
-  useEffect(() => {
-    const t = setTimeout(() => SplashScreen.hideAsync(), 600);
-    return () => clearTimeout(t);
-  }, []);
-
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.bg.base }} onLayout={() => SplashScreen.hideAsync()}>
+      <View style={{ flex: 1, backgroundColor: colors.bg.base }}>
         <StatusBar style="light" />
+      </View>
+    );
+  }
+
+  if (isError) {
+    return (
+      <View
+        style={{ flex: 1, backgroundColor: colors.bg.base }}
+        onLayout={() => SplashScreen.hideAsync()}
+      >
+        <StatusBar style="light" />
+        <ConnectionErrorScreen onRetry={() => refetch()} isRetrying={isRefetching} />
       </View>
     );
   }

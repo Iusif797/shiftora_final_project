@@ -19,6 +19,9 @@ export const useSession = () => {
     queryKey: SESSION_QUERY_KEY,
     queryFn: async () => {
       const result = await withTimeout(authClient.getSession(), SESSION_TIMEOUT_MS);
+      if (result.error && result.error.status !== 401 && result.error.status !== 403) {
+        throw new Error(result.error.message ?? 'Session check failed');
+      }
       return result.data ?? null;
     },
     staleTime: 1000 * 60 * 5,
