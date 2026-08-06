@@ -40,6 +40,10 @@
         "CAMERA",
         "ACCESS_FINE_LOCATION",
         "READ_EXTERNAL_STORAGE"
+      ],
+      "blockedPermissions": [
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO"
       ]
     },
     "plugins": [

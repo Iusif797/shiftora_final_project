@@ -82,7 +82,6 @@
     "expo-location": "~57.0.8",
     "expo-mail-composer": "~57.0.1",
     "expo-manifests": "~57.0.1",
-    "expo-media-library": "~57.0.3",
     "expo-mesh-gradient": "~57.0.1",
     "expo-network": "~57.0.1",
     "expo-network-addons": "~0.7.2",

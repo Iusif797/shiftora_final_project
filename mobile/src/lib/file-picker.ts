@@ -15,13 +15,6 @@ export async function pickImage(): Promise<PickedFile | null> {
   return { uri: a.uri, filename: a.fileName ?? `image-${Date.now()}.jpg`, mimeType: a.mimeType ?? "image/jpeg" };
 }
 
-export async function pickVideo(): Promise<PickedFile | null> {
-  const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Videos });
-  if (result.canceled) return null;
-  const a = result.assets[0];
-  return { uri: a.uri, filename: a.fileName ?? `video-${Date.now()}.mp4`, mimeType: a.mimeType ?? "video/mp4" };
-}
-
 export async function takePhoto(): Promise<PickedFile | null> {
   const perm = await ImagePicker.requestCameraPermissionsAsync();
   if (!perm.granted) return null;
