@@ -195,5 +195,10 @@
         "expo-sharing"
       ]
     }
-  }
+  },
+  "trustedDependencies": [
+    "@sentry/cli",
+    "@shopify/react-native-skia",
+    "unrs-resolver"
+  ]
 }
