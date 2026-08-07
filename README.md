@@ -1,5 +1,14 @@
 # Shiftora
 
+> **Note (7 Aug 2026) — Stripe is backend-only.** The mobile app contains no
+> path to Stripe: no billing screen, no checkout call, no payment SDK. It was
+> removed for Apple App Store Review Guideline 3.1.1 (digital subscriptions
+> must use in-app purchase). The backend Stripe code, webhooks and existing
+> subscriptions are untouched. Everything about that change, including how to
+> restore it, is in [`archiv/stripe-billing-2026-08-07/README.md`](./archiv/stripe-billing-2026-08-07/README.md).
+> Any mention of Stripe below therefore describes the **backend only**.
+
+
 Shift management platform for restaurants. Manage employee schedules, track attendance with QR check-ins, detect anomalies, and get workforce analytics — all from a mobile app.
 
 ## Architecture

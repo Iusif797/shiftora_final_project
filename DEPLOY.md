@@ -1,5 +1,14 @@
 # Production deployment
 
+> **Note (7 Aug 2026) — Stripe is backend-only.** The mobile app contains no
+> path to Stripe: no billing screen, no checkout call, no payment SDK. It was
+> removed for Apple App Store Review Guideline 3.1.1 (digital subscriptions
+> must use in-app purchase). The backend Stripe code, webhooks and existing
+> subscriptions are untouched. Everything about that change, including how to
+> restore it, is in [`archiv/stripe-billing-2026-08-07/README.md`](./archiv/stripe-billing-2026-08-07/README.md).
+> Any mention of Stripe below therefore describes the **backend only**.
+
+
 Shiftora backend deploys as a Docker service and uses PostgreSQL. The container runs `prisma migrate deploy` before starting the API. It never uses `db push` or `--accept-data-loss` in production.
 
 ## 1. Infrastructure
