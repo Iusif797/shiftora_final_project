@@ -140,7 +140,15 @@ app.get("/health", async (c) => {
   try {
     await Promise.race([prisma.$queryRaw`SELECT 1`, timeout]);
     return c.json({
-      data: { status: "ok", db: "ok", uptime: process.uptime() },
+      data: {
+        status: "ok",
+        db: "ok",
+        uptime: process.uptime(),
+        // Какой коммит реально работает. Без этого «задеплоено» — утверждение,
+        // а не доказательство: снаружи нельзя отличить новый код от старого.
+        // RENDER_GIT_COMMIT проставляет сама платформа Render.
+        commit: (process.env.RENDER_GIT_COMMIT ?? "unknown").slice(0, 8),
+      },
     });
   } catch (err) {
     appLogger.error({ err }, "Health check failed (DB unreachable)");
