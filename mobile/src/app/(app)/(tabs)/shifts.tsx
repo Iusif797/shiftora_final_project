@@ -16,7 +16,6 @@ import { CardListSkeleton } from '@/components/ui/skeletons';
 import { api } from '@/lib/api/api';
 import { showError, showSuccess } from '@/lib/toast';
 import { useSession } from '@/lib/auth/use-session';
-import { useHasFeature } from '@/lib/use-subscription';
 import { formatDate, formatTime } from '@/lib/formatters';
 import { colors, radius, spacing, statusAppearance, typography } from '@/theme';
 import type { AppUser, Shift, ShiftAssignment, Employee } from '@/types/app';
@@ -328,7 +327,6 @@ export default function Shifts() {
   const [showCreate, setShowCreate] = useState<boolean>(false);
   const [qrShift, setQrShift] = useState<Shift | null>(null);
   const [editShift, setEditShift] = useState<Shift | null>(null);
-  const canAutoGenerate = useHasFeature('aiShiftGeneration');
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -437,13 +435,7 @@ export default function Shifts() {
           style={{ position: 'absolute', bottom: 130, right: 20, flexDirection: 'row', gap: 12 }}
         >
           <ScalePressable
-            onPress={() => {
-              if (!canAutoGenerate) {
-                showError('Pro feature', 'Auto-generate schedule requires a Pro plan.');
-                return;
-              }
-              generateMutation.mutate();
-            }}
+            onPress={() => generateMutation.mutate()}
             disabled={generateMutation.isPending}
             scale={0.9}
             haptic="medium"

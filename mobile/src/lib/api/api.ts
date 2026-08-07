@@ -20,12 +20,12 @@ export class AuthError extends Error {
   }
 }
 
-export class SubscriptionError extends Error {
+export class FeatureUnavailableError extends Error {
   code: string;
 
-  constructor(message: string, code = "SUBSCRIPTION_REQUIRED") {
+  constructor(message: string, code = "FEATURE_UNAVAILABLE") {
     super(message);
-    this.name = "SubscriptionError";
+    this.name = "FeatureUnavailableError";
     this.code = code;
   }
 }
@@ -66,9 +66,9 @@ const request = async <T>(
 
   if (response.status === 402 && json && typeof json === "object" && "error" in json) {
     const err = json as { error?: { message?: string; code?: string } };
-    throw new SubscriptionError(
-      err.error?.message ?? "Subscription upgrade required",
-      err.error?.code ?? "SUBSCRIPTION_REQUIRED",
+    throw new FeatureUnavailableError(
+      err.error?.message ?? "This feature is not available for your workspace",
+      err.error?.code ?? "FEATURE_UNAVAILABLE",
     );
   }
 

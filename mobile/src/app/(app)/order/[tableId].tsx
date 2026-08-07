@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Image, Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Minus, Plus, X } from 'lucide-react-native';
@@ -86,24 +85,6 @@ export default function TableOrderScreen() {
     onError: (err) => showError('Payment failed', err.message),
   });
 
-  const payStripe = useMutation({
-    mutationFn: async () => {
-      const result = await api.post<{ url: string }>(`/api/orders/${order!.id}/pay`, { method: 'STRIPE' });
-      if (result.url) await WebBrowser.openBrowserAsync(result.url);
-      return api.post<{ paid: boolean; order?: PosOrder }>(`/api/orders/${order!.id}/confirm-payment`);
-    },
-    onSuccess: (result) => {
-      invalidate();
-      if (result.paid) {
-        showSuccess('Paid', 'Stripe payment confirmed');
-        router.back();
-      } else {
-        showError('Payment pending', 'Complete checkout, then try payment confirmation again.');
-      }
-    },
-    onError: (err) => showError('Stripe failed', err.message),
-  });
-
   const activeItems = useMemo(
     () => order?.items.filter((item) => item.status !== 'CANCELLED') ?? [],
     [order?.items],
@@ -148,7 +129,6 @@ export default function TableOrderScreen() {
             {[
               { label: 'Cash', action: () => payCash.mutate() },
               { label: 'Card terminal', action: () => payCard.mutate() },
-              { label: 'Stripe checkout', action: () => payStripe.mutate() },
             ].map((method) => (
               <ScalePressable
                 key={method.label}
@@ -211,7 +191,7 @@ export default function TableOrderScreen() {
         </View>
         {order.paymentStatus !== 'PAID' && activeItems.length > 0 ? (
           <View style={{ marginTop: spacing.lg }}>
-            <PrimaryButton label="Take payment" onPress={confirmPay} loading={payCash.isPending || payCard.isPending || payStripe.isPending} testID="pay-order-button" />
+            <PrimaryButton label="Take payment" onPress={confirmPay} loading={payCash.isPending || payCard.isPending} testID="pay-order-button" />
           </View>
         ) : null}
         {order.paymentStatus !== 'PAID' ? (

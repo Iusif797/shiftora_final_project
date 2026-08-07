@@ -5,14 +5,12 @@ import { Activity, AlertTriangle, Banknote, Sparkles, TrendingUp, Users } from '
 import { ScreenScroll } from '@/components/app-shell';
 import { AccentBadge } from '@/components/buttons';
 import { EmptyState, ErrorState, HighlightCard, MetricCard, SurfaceCard } from '@/components/cards';
-import { PaywallGate } from '@/components/paywall';
 import { MiniProgress } from '@/components/ui/mini-progress';
 import { StaggerItem } from '@/components/ui/motion';
 import { ProgressRing } from '@/components/ui/progress-ring';
 import { CardListSkeleton, HeroSkeleton, MetricGridSkeleton } from '@/components/ui/skeletons';
 import { api } from '@/lib/api/api';
 import { anomalyAppearance, colors, spacing, typography } from '@/theme';
-import { useHasFeature } from '@/lib/use-subscription';
 import type { AnalyticsOverview } from '@/types/app';
 
 interface EmployeeStat {
@@ -70,7 +68,6 @@ const staffingAppearance = {
 } as const;
 
 function AnalyticsScreen() {
-  const hasAiInsights = useHasFeature('aiInsights');
   const { data: overview, isLoading, isRefetching, isError, error, refetch } = useQuery({
     queryKey: ['analytics-overview'],
     queryFn: () => api.get<AnalyticsOverview>('/api/analytics/overview'),
@@ -143,7 +140,6 @@ function AnalyticsScreen() {
         {!isError && !isLoading ? (
           <>
             <StaggerItem index={0}>
-              <PaywallGate locked={!hasAiInsights} requiredPlan="pro" featureLabel="AI staffing insights">
                 {insights ? (
                   <HighlightCard>
                     <AccentBadge label="Staffing health" color={health.color} tint={health.tint} />
@@ -170,7 +166,6 @@ function AnalyticsScreen() {
                     </View>
                   </HighlightCard>
                 ) : null}
-              </PaywallGate>
             </StaggerItem>
 
         <StaggerItem index={1} style={{ marginTop: spacing.xl }}>

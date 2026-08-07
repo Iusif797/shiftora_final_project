@@ -1,7 +1,7 @@
 export type TableStatus = 'FREE' | 'OCCUPIED' | 'RESERVED';
 export type OrderStatus = 'OPEN' | 'PREPARING' | 'READY' | 'SERVED' | 'PAID' | 'CANCELLED';
 export type OrderItemStatus = 'PENDING' | 'PREPARING' | 'READY' | 'SERVED' | 'CANCELLED';
-export type PaymentMethod = 'NONE' | 'CASH' | 'CARD' | 'STRIPE';
+export type PaymentMethod = 'NONE' | 'CASH' | 'CARD';
 export type PaymentStatus = 'UNPAID' | 'PAID' | 'REFUNDED';
 
 export interface MenuCategory {
