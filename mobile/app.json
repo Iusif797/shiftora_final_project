@@ -14,8 +14,7 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Shiftora использует камеру для QR-сканирования при отметке явки и для фото при check-in.",
         "NSLocationWhenInUseUsageDescription": "Shiftora использует геолокацию для проверки близости к ресторану при отметке явки.",
-        "NSPhotoLibraryUsageDescription": "Shiftora использует доступ к фото для загрузки аватара в профиль.",
-        "ITSAppUsesNonExemptEncryption": false
+        "NSPhotoLibraryUsageDescription": "Shiftora использует доступ к фото для загрузки аватара в профиль."
       },
       "privacyManifests": {
         "NSPrivacyAccessedAPITypes": [
@@ -27,11 +26,11 @@
           }
         ]
       },
-      "buildNumber": "4"
+      "buildNumber": "5"
     },
     "android": {
       "package": "pro.itenterprise.shiftora",
-      "versionCode": 13,
+      "versionCode": 14,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#000000"

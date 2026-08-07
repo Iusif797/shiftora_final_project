@@ -72,7 +72,10 @@ function RootLayoutNav() {
     );
   }
 
-  if (isError) {
+  // Экран «попробовать снова» — только когда сессии нет вообще: ни свежей
+  // с сервера, ни сохранённой в SecureStore. Вошедший человек при провале
+  // сети продолжает работать с сохранённой сессией.
+  if (isError && !session) {
     return (
       <View
         style={{ flex: 1, backgroundColor: colors.bg.base }}

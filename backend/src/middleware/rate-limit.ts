@@ -7,18 +7,33 @@ type RateLimitOptions = {
   scope?: string;
   identity?: (c: Context) => string | null | undefined;
 };
-const developmentStore = new Map<string, { count: number; resetAt: Date }>();
+const memoryStore = new Map<string, { count: number; resetAt: Date }>();
 let lastDatabaseCleanup = 0;
+let lastDegradedLog = 0;
 
-function consumeDevelopmentBucket(key: string, resetAt: Date) {
-  const current = developmentStore.get(key);
+function consumeMemoryBucket(key: string, resetAt: Date) {
+  const current = memoryStore.get(key);
   if (!current || current.resetAt <= new Date()) {
     const created = { count: 1, resetAt };
-    developmentStore.set(key, created);
+    memoryStore.set(key, created);
     return created;
   }
   current.count += 1;
   return current;
+}
+
+/**
+ * Счётчик лимитов недоступен (обычно — провал Postgres / пула Supabase).
+ * Пишем в лог не чаще раза в минуту, чтобы падение БД не залило логи.
+ */
+function logDegraded(error: unknown) {
+  const now = Date.now();
+  if (now - lastDegradedLog < 60_000) return;
+  lastDegradedLog = now;
+  console.error(
+    "[rate-limit] счётчик лимитов недоступен, переходим на счёт в памяти (fail-open):",
+    error instanceof Error ? error.message : error,
+  );
 }
 
 function clientAddress(c: Context): string {
@@ -72,8 +87,14 @@ export function rateLimit(
           .catch(() => {});
       }
     } catch (error) {
-      if (env.NODE_ENV === "production") throw error;
-      entry = consumeDevelopmentBucket(key, resetAt);
+      // FAIL-OPEN. Раньше в production ошибка пробрасывалась наружу, и любая
+      // икота Postgres превращалась в 500 на всех /api/auth/* — то есть никто
+      // не мог войти. Заблокировать вход всем из-за недоступного счётчика
+      // лимитов хуже, чем на минуту считать лимит только в памяти процесса:
+      // сами лимиты выставлены с большим запасом.
+      logDegraded(error);
+      entry = consumeMemoryBucket(key, resetAt);
+      c.header("RateLimit-Degraded", "in-memory");
     }
     const remaining = Math.max(0, maxRequests - (entry?.count ?? maxRequests));
     const retryAfter = Math.max(

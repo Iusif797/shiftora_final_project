@@ -11,6 +11,7 @@
     "postinstall": "node scripts/patch-better-auth-expo.mjs",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
+    "test": "bun test",
     "build": "expo export --platform web"
   },
   "dependencies": {

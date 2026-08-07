@@ -2,8 +2,9 @@ import * as Sentry from "@sentry/react-native";
 import { fetch } from "expo/fetch";
 import { router } from "expo-router";
 import { authClient } from "../auth/auth-client";
+import { BACKEND_URL } from "../config";
 
-const baseUrl = process.env.EXPO_PUBLIC_BACKEND_URL!;
+const baseUrl = BACKEND_URL;
 
 export class NetworkError extends Error {
   constructor() {
