@@ -114,7 +114,7 @@ function AnalyticsScreen() {
   return (
     <ScreenScroll
       title="Analytics"
-      subtitle="AI-powered insights and performance"
+      subtitle="Workforce insights and performance"
       testID="analytics-scroll"
       refreshControl={
         <RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} tintColor={colors.brand.gold} />
