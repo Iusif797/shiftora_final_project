@@ -6,7 +6,8 @@ export default function Privacy() {
     { title: 'Why we use it', body: 'We use this information to provide scheduling, attendance, point-of-sale, analytics, security, support, and service reliability. We do not sell personal information.' },
     { title: 'Sharing and processors', body: 'Information may be handled by service providers used for hosting, storage, email, error monitoring, push notifications, and AI features. Shiftora does not take card payments and does not collect or store payment card details.' },
     { title: 'Retention and security', body: 'Workspace records are retained while the restaurant account is active and as required for legitimate business, security, and legal purposes. We use access controls, encryption in transit, signed sessions, and audit-oriented monitoring.' },
-    { title: 'Your choices', body: 'You can update profile information in the app. For access, correction, deletion, or export requests, contact your restaurant workspace owner. The owner can coordinate requests that require Shiftora support.' },
+    { title: 'Deleting your account', body: 'You can delete your account and its data yourself, at any time, in the app: Profile, then Delete account. The same option is in Settings. No request, email, or support call is needed. Deletion is permanent and cannot be undone. If you own a restaurant, deleting your account also deletes that restaurant and its records; employees keep their own accounts.' },
+    { title: 'Your other choices', body: 'You can update profile information in the app. For access, correction, or export requests, contact your restaurant workspace owner. The owner can coordinate requests that require Shiftora support.' },
     { title: 'Location and photos', body: 'Location and photo permissions are requested only when you initiate a check-in method that uses them. You can deny device permission, although a restaurant may require location for attendance verification.' },
   ]} />;
 }
