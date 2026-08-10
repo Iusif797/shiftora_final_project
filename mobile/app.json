@@ -26,11 +26,11 @@
           }
         ]
       },
-      "buildNumber": "9"
+      "buildNumber": "10"
     },
     "android": {
       "package": "pro.itenterprise.shiftora",
-      "versionCode": 18,
+      "versionCode": 19,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#000000"
