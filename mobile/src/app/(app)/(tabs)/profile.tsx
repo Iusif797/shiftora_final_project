@@ -8,6 +8,7 @@ import { Camera, Edit2, Check, Settings } from 'lucide-react-native';
 import { AppBackground, ScreenHeader } from '@/components/app-shell';
 import { PrimaryButton, SecondaryButton, AccentBadge } from '@/components/buttons';
 import { ErrorState, SurfaceCard } from '@/components/cards';
+import { DeleteAccountSection } from '@/components/delete-account';
 import { FormField } from '@/components/form-field';
 import { ScalePressable } from '@/components/ui/pressable';
 import { api } from '@/lib/api/api';
@@ -185,6 +186,10 @@ export default function ProfileScreen() {
               </View>
             )}
           </SurfaceCard>
+
+          <View style={{ marginTop: spacing.xl }}>
+            <DeleteAccountSection />
+          </View>
 
         </ScrollView>
       </SafeAreaView>

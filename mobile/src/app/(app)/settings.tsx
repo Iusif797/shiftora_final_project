@@ -10,6 +10,7 @@ import { ScreenScroll } from '@/components/app-shell';
 import { GeofenceMap } from '@/components/GeofenceMap';
 import { AccentBadge, PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { EmptyState, HighlightCard, SurfaceCard } from '@/components/cards';
+import { DeleteAccountSection } from '@/components/delete-account';
 import { api } from '@/lib/api/api';
 import { authClient } from '@/lib/auth/auth-client';
 import { useInvalidateSession, useSession } from '@/lib/auth/use-session';
@@ -207,6 +208,10 @@ export default function Settings() {
             icon={LogOut}
             testID="sign-out-button"
           />
+        </View>
+
+        <View style={{ marginTop: spacing.xl }}>
+          <DeleteAccountSection testID="delete-account-button-settings" />
         </View>
 
         <View style={{ marginTop: spacing.lg, flexDirection: 'row', justifyContent: 'center', gap: spacing.lg }}>
