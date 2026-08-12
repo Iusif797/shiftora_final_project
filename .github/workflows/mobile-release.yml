@@ -159,6 +159,12 @@ jobs:
       MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
       MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
       MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+      # ukol #341: bez tohoto sentry-cli sestreli fazi "Bundle React Native code
+      # and images" (hlasi 'An organization ID or slug is required --org') a padne
+      # cely archiv. eas.json profil production ma tuto promennou taky — proto
+      # EAS buildy 3-9 prosly a tenhle workflow ne.
+      SENTRY_DISABLE_AUTO_UPLOAD: "true"
+      SENTRY_ALLOW_FAILURE: "true"
     defaults:
       run:
         working-directory: mobile
