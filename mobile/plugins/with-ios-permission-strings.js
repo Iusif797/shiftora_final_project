@@ -33,24 +33,35 @@
 
 const { withInfoPlist } = require('expo/config-plugins');
 
-/** Usage descriptions injected by unused modules. Removed from the built Info.plist. */
+/** Usage descriptions injected by unused modules. Removed from the built Info.plist.
+ *
+ * WARNING (2026-08-13, after build 11 was refused with 3x ITMS-90683): deleting a key
+ * from this list is NOT enough. expo-calendar and expo-contacts were still listed in
+ * package.json, so they were autolinked and Apple's static analysis found the API
+ * references in the compiled binary even though the purpose strings were gone.
+ * Both packages are therefore removed from package.json itself; this list only stays
+ * as a guard in case someone adds them back.
+ *
+ * NSMotionUsageDescription used to be in this list, filed under "expo-sensors".
+ * That was wrong: expo-sensors was never a dependency of this app. The key comes from
+ * **expo-location**, which the app does use (check-in). It must NOT be stripped, and
+ * it is declared with an English purpose string in app.json.
+ */
 const UNUSED_USAGE_DESCRIPTIONS = [
-  // expo-calendar — not imported anywhere in src/
-  'NSCalendarsUsageDescription',
-  'NSCalendarsFullAccessUsageDescription',
-  'NSCalendarsWriteOnlyAccessUsageDescription',
-  'NSRemindersUsageDescription',
-  'NSRemindersFullAccessUsageDescription',
-  // expo-contacts — not imported anywhere in src/
-  'NSContactsUsageDescription',
-  // expo-sensors — not imported anywhere in src/
-  'NSMotionUsageDescription',
+  // expo-calendar / expo-contacts — removed from package.json on 2026-08-13.
+  "NSCalendarsUsageDescription",
+  "NSCalendarsFullAccessUsageDescription",
+  "NSCalendarsWriteOnlyAccessUsageDescription",
+  "NSRemindersUsageDescription",
+  "NSRemindersFullAccessUsageDescription",
+  "NSContactsUsageDescription",
   // react-native-vision-camera / expo-camera audio capture — the app only scans QR
   // codes with expo-camera's CameraView and never records audio or video.
-  'NSMicrophoneUsageDescription',
+  "NSMicrophoneUsageDescription",
   // expo-location background modes — checkin.ts only calls the when-in-use API.
-  'NSLocationAlwaysUsageDescription',
-  'NSLocationAlwaysAndWhenInUseUsageDescription',
+  // Do NOT add NSMotionUsageDescription here: Apple requires it for expo-location.
+  "NSLocationAlwaysUsageDescription",
+  "NSLocationAlwaysAndWhenInUseUsageDescription",
 ];
 
 module.exports = function withIosPermissionStrings(config) {
@@ -61,5 +72,3 @@ module.exports = function withIosPermissionStrings(config) {
     return cfg;
   });
 };
-
-module.exports.UNUSED_USAGE_DESCRIPTIONS = UNUSED_USAGE_DESCRIPTIONS;
