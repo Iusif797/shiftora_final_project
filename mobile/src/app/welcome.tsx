@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { Dimensions, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
@@ -9,7 +9,6 @@ import { ArrowRight } from 'lucide-react-native';
 import { PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { colors, radius, spacing, typography } from '@/theme';
 
-const { width, height } = Dimensions.get('window');
 const heroImage = require('../../assets/onboarding/hero.png');
 const operationsImage = require('../../assets/onboarding/operations.png');
 const successImage = require('../../assets/onboarding/success.png');
@@ -51,6 +50,10 @@ export default function WelcomeScreen() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
+  // Musi to byt hook, ne Dimensions.get() na urovni modulu: ta hodnota se sejme
+  // jednou pri importu a uz nikdy se neaktualizuje. Pri otoceni zarizeni nebo ve
+  // Split View na iPadu pak carousel strankuje na spatne offsety a slidy se orizly.
+  const { width, height } = useWindowDimensions();
 
   const handleGetStarted = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
