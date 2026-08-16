@@ -68,9 +68,8 @@ jobs:
   # ---------------------------------------------------------------------------
   android:
     name: Android (signed AAB)
-    # ukol #341: tato vetev slouzi VYHRADNE k iOS buildu 10.
-    # Android job je zamerne vypnuty, aby se nic nenahralo do Play.
-    if: false
+    # ukol #416: tato vetev slouzi VYHRADNE k Android/Play buildu.
+    # Android job je znovu zapnuty; iOS job je naopak vypnuty (viz nize).
     needs: [bundle_check]
     runs-on: ubuntu-latest
     env:
@@ -151,6 +150,9 @@ jobs:
   # ---------------------------------------------------------------------------
   ios:
     name: iOS (build + sign via match)
+    # ukol #416: ShifTora build 12 je u Apple ve stavu WAITING_FOR_REVIEW.
+    # Jakykoli novy iOS upload by submission stahnul -> iOS job je tvrde vypnuty.
+    if: false
     needs: [bundle_check]
     runs-on: macos-latest # Xcode 26 / iOS 26 SDK (Apple TestFlight minimum); SDK 57 compiles here
     env:
