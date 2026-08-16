@@ -78,6 +78,15 @@ jobs:
       ANDROID_KEY_PASSWORD: ${{ secrets.SHIFTORA_ANDROID_KEY_PASSWORD }}
       ANDROID_KEY_ALIAS: ${{ secrets.SHIFTORA_ANDROID_KEY_ALIAS }}
       PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+      # ukol #416: bez tohohle sentry-cli sestreli task
+      # ':app:createBundleReleaseJsAndAssets_SentryUpload_*' hlaskou
+      # 'An organization ID or slug is required (provide with --org)'
+      # a spadne cely gradle build. Tuhle opravu uz mel iOS job (commit 8d66aee,
+      # ukol #341); Android job ji nemel, protoze byl od #341 vypnuty ('if: false')
+      # a nikdo na to na Androidu nenarazil. eas.json profil production tuhle
+      # promennou ma taky - proto EAS buildy prochazely a tenhle workflow ne.
+      SENTRY_DISABLE_AUTO_UPLOAD: "true"
+      SENTRY_ALLOW_FAILURE: "true"
     defaults:
       run:
         working-directory: mobile
