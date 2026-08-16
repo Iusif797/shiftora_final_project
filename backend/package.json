@@ -25,7 +25,6 @@
     "@hono/zod-validator": "^0.7.6",
     "@prisma/client": "^6.19.3",
     "@sentry/node": "^10.65.0",
-    "@vibecodeapp/proxy": "^2.0.3",
     "better-auth": "^1.6.23",
     "hono": "^4.12.30",
     "pino": "^9.14.0",
