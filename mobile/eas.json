@@ -19,7 +19,8 @@
       "environment": "production",
       "env": {
         "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a,armeabi-v7a",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_BACKEND_URL": "https://api.shiftora.it-enterprise.cloud"
       }
     }
   },
