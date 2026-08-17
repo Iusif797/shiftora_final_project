@@ -19,7 +19,8 @@
         "NSCameraUsageDescription": "Shiftora uses the camera to scan the check-in QR code at your restaurant and to take an optional photo when you clock in.",
         "NSLocationWhenInUseUsageDescription": "Shiftora uses your location while you clock in, to confirm that you are at the restaurant. Your location is not tracked in the background.",
         "NSPhotoLibraryUsageDescription": "Shiftora uses your photo library so that you can pick a profile picture and attach an image to a check-in.",
-        "NSFaceIDUsageDescription": "Shiftora uses Face ID to protect the sign-in session stored securely on this device."
+        "NSFaceIDUsageDescription": "Shiftora uses Face ID to protect the sign-in session stored securely on this device.",
+        "NSMotionUsageDescription": "Shiftora uses motion data from your device so that location updates while you clock in are accurate and use less battery."
       },
       "privacyManifests": {
         "NSPrivacyAccessedAPITypes": [
@@ -31,11 +32,11 @@
           }
         ]
       },
-      "buildNumber": "11"
+      "buildNumber": "13"
     },
     "android": {
       "package": "pro.itenterprise.shiftora",
-      "versionCode": 20,
+      "versionCode": 22,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#000000"

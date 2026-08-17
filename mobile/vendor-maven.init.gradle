@@ -1,0 +1,24 @@
+// Adds the committed local Maven repo (mobile/vendor-maven) so the build does
+// NOT depend on live jitpack.io for com.github.iielse:imageviewer and its
+// jitpack transitive com.github.chrisbanes:PhotoView. All other transitives
+// (androidx / kotlin / exoplayer / subsampling) resolve from google()/central.
+// Applied to BOTH the settings dependency-resolution repos (modern
+// FAIL_ON_PROJECT_REPOS setups) and allprojects (classic Expo/RN model).
+def vendorRepo = System.getenv('VENDOR_MAVEN_REPO')
+if (vendorRepo) {
+  def repoUri = new File(vendorRepo).toURI()
+  gradle.settingsEvaluated { settings ->
+    try {
+      settings.dependencyResolutionManagement.repositories {
+        maven { url repoUri }
+      }
+    } catch (ignored) { }
+  }
+  gradle.allprojects { proj ->
+    try {
+      proj.repositories {
+        maven { url repoUri }
+      }
+    } catch (ignored) { }
+  }
+}

@@ -36,9 +36,35 @@ ALLOWED_ORIGIN=https://app.example.com
 TRUST_PROXY_HEADERS=true
 RESEND_API_KEY=re_...
 FROM_EMAIL=Shiftora <no-reply@example.com>
+UPLOAD_DIR=/data/uploads
 ```
 
 `ALLOWED_ORIGIN` accepts a comma-separated list of exact HTTPS origins; do not add wildcards. Set `TRUST_PROXY_HEADERS=true` only behind a trusted proxy that replaces forwarded headers. Add Stripe, storage, Gemini and Sentry variables from the example only for the features you enable.
+
+`BACKEND_URL` must be the public HTTPS origin of the API. It is not cosmetic: better-auth uses it as its `baseURL`, and every uploaded file's stored URL is built from it. Pointing it at a hostname that does not resolve produces working health checks and unreachable file URLs.
+
+### File uploads
+
+Uploads are written to local disk under `UPLOAD_DIR` and served back from
+`GET /api/upload/f/:fileId`. Two operational requirements:
+
+- **`UPLOAD_DIR` must be a persistent volume.** Without one, every uploaded file
+  is lost on the next container rebuild while the `Asset` rows survive, leaving
+  rows whose bytes are gone.
+- **The directory must be writable by the container's runtime uid.** The image
+  runs as `USER bun` (uid 1000). A freshly created Docker volume is owned by
+  `root:root`, and the result is that *every* upload fails with HTTP 500
+  `STORAGE_WRITE_FAILED` while the rest of the API looks perfectly healthy.
+  Fix once, at provisioning time:
+
+```bash
+docker volume create shiftora-uploads
+docker run --rm -v shiftora-uploads:/data/uploads alpine:3 \
+  sh -c 'chown -R 1000:1000 /data/uploads && chmod 750 /data/uploads'
+```
+
+Verify after deploy by uploading a real image and re-fetching the `url` from the
+response; a 200 with byte-identical content means storage is wired correctly.
 
 API documentation is disabled in production by default. Temporarily set `ENABLE_API_DOCS=true` only when it is actually needed.
 
