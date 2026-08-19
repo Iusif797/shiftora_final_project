@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { AlertTriangle, CheckCircle2, Info } from 'lucide-react-native';
 import { enterFade, exitFade } from '@/components/ui/motion';
+import { toastAccentBar } from '@/i18n/rtl-styles';
 import { dismissToast, subscribeToToasts } from '@/lib/toast';
 import type { ToastItem } from '@/lib/toast';
 import { colors, motion, radius, shadows, spacing, typography } from '@/theme';
@@ -75,7 +76,7 @@ function ToastCard({ item, onDismiss }: ToastCardProps) {
             ...shadows.card,
           }}
         >
-          <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: color }} />
+          <View style={[toastAccentBar, { backgroundColor: color }]} />
           <Icon color={color} size={20} strokeWidth={2} />
           <View style={{ flex: 1 }}>
             <Text style={{ ...typography.h4, color: colors.text.primary }} numberOfLines={2}>

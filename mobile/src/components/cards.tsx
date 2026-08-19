@@ -7,6 +7,7 @@ import { PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { AnimatedNumber } from '@/components/ui/animated-number';
 import { enterFade, enterZoom } from '@/components/ui/motion';
 import { ScalePressable } from '@/components/ui/pressable';
+import { useT } from '@/i18n/I18nProvider';
 import { colors, fonts, radius, shadows, spacing, typography } from '@/theme';
 
 type IconComponent = ComponentType<{ color: string; size: number; strokeWidth: number }>;
@@ -149,11 +150,12 @@ interface ErrorStateProps {
 }
 
 export function ErrorState({ message, onRetry, testID }: ErrorStateProps) {
+  const t = useT();
   return (
     <SurfaceCard>
       <View style={{ alignItems: 'center', gap: spacing.lg }} testID={testID}>
         <Text style={{ ...typography.body, color: colors.danger.base, textAlign: 'center' }}>{message}</Text>
-        <PrimaryButton label="Retry" onPress={onRetry} testID="error-retry-button" />
+        <PrimaryButton label={t('common.retry')} onPress={onRetry} testID="error-retry-button" />
       </View>
     </SurfaceCard>
   );

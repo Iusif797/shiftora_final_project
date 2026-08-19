@@ -4,6 +4,7 @@ import { useNetworkStatus } from '@/lib/use-network';
 import { countPendingItems, loadOfflineQueue } from '@/lib/offline-checkin-queue';
 import { flushOfflineCheckinQueue } from '@/lib/offline-checkin-sync';
 import { showError, showSuccess } from '@/lib/toast';
+import { useT } from '@/i18n/I18nProvider';
 
 export const OFFLINE_CHECKIN_QUEUE_KEY = ['offline-checkin-queue'] as const;
 
@@ -16,6 +17,7 @@ export function useOfflineCheckinQueue() {
 }
 
 export function useOfflineCheckinSync() {
+  const t = useT();
   const isConnected = useNetworkStatus();
   const queryClient = useQueryClient();
   const flushingRef = useRef(false);
@@ -37,14 +39,14 @@ export function useOfflineCheckinSync() {
           await queryClient.invalidateQueries({ queryKey: ['checkin-history'] });
           await queryClient.invalidateQueries({ queryKey: ['upcoming-shifts'] });
           showSuccess(
-            'Attendance synced',
+            t('schedule.attendance.syncedTitle'),
             result.synced === 1
-              ? '1 pending check-in was uploaded'
-              : `${result.synced} pending items were uploaded`,
+              ? t('schedule.attendance.syncedOne')
+              : t('schedule.attendance.syncedMany', { count: result.synced }),
           );
         }
         if (result.failed.length > 0) {
-          showError('Some check-ins failed', result.failed[0]?.message ?? 'Sync failed');
+          showError(t('schedule.attendance.someFailedTitle'), result.failed[0]?.message ?? t('schedule.checkin.syncFailedFallback'));
         }
       } finally {
         flushingRef.current = false;
@@ -56,7 +58,7 @@ export function useOfflineCheckinSync() {
     return () => {
       cancelled = true;
     };
-  }, [isConnected, queryClient]);
+  }, [isConnected, queryClient, t]);
 }
 
 export function usePendingCheckinCount() {

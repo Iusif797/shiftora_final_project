@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
+import { translate } from '@/i18n/active';
 
 const SHIFT_REMINDER_MINS = 30;
 const CHANNEL_ID = 'shift-reminders';
@@ -25,7 +26,7 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 async function ensureChannel(): Promise<void> {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
-      name: 'Shift reminders',
+      name: translate('ops.notifications.channelName'),
       importance: Notifications.AndroidImportance.HIGH,
     });
   }
@@ -64,8 +65,11 @@ export async function scheduleShiftReminders(
 
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Shift reminder',
-        body: `Your shift "${shift.title}" starts in ${SHIFT_REMINDER_MINS} minutes`,
+        title: translate('ops.notifications.shiftReminderTitle'),
+        body: translate('ops.notifications.shiftReminderBody', {
+          title: shift.title,
+          minutes: SHIFT_REMINDER_MINS,
+        }),
         data: { shiftId: shift.id },
       },
       trigger,

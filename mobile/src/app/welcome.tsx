@@ -6,8 +6,15 @@ import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight } from 'lucide-react-native';
+import { directionalIcon } from '@/components/ui/directional-icon';
 import { PrimaryButton, SecondaryButton } from '@/components/buttons';
+import { LanguageSwitcher } from '@/components/language-switcher';
+import { useT } from '@/i18n/I18nProvider';
+import type { TranslationKey } from '@/i18n/I18nProvider';
 import { colors, radius, spacing, typography } from '@/theme';
+
+/** "Continue" arrow — a directional affordance, so it flips under RTL. */
+const ForwardArrow = directionalIcon(ArrowRight);
 
 const heroImage = require('../../assets/onboarding/hero.png');
 const operationsImage = require('../../assets/onboarding/operations.png');
@@ -15,15 +22,15 @@ const successImage = require('../../assets/onboarding/success.png');
 
 type Slide = {
   id: string;
-  title: string;
-  subtitle: string;
+  titleKey: TranslationKey;
+  subtitleKey: TranslationKey;
   image: number;
 };
 
 const slides: Slide[] = [
-  { id: '1', title: 'Manage shifts easily', subtitle: 'Plan and track team schedules', image: heroImage },
-  { id: '2', title: 'Track attendance', subtitle: 'Check-in and monitor staff presence', image: operationsImage },
-  { id: '3', title: 'Team analytics', subtitle: 'See performance and staffing insights', image: successImage },
+  { id: '1', titleKey: 'auth.welcome.slide1Title', subtitleKey: 'auth.welcome.slide1Subtitle', image: heroImage },
+  { id: '2', titleKey: 'auth.welcome.slide2Title', subtitleKey: 'auth.welcome.slide2Subtitle', image: operationsImage },
+  { id: '3', titleKey: 'auth.welcome.slide3Title', subtitleKey: 'auth.welcome.slide3Subtitle', image: successImage },
 ];
 
 function SlideIndicator({ current }: { current: number }) {
@@ -47,6 +54,7 @@ function SlideIndicator({ current }: { current: number }) {
 const FOOTER_HEIGHT = 180;
 
 export default function WelcomeScreen() {
+  const t = useT();
   const [currentSlide, setCurrentSlide] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
@@ -119,7 +127,7 @@ export default function WelcomeScreen() {
                     lineHeight: 34,
                   }}
                 >
-                  {slide.title}
+                  {t(slide.titleKey)}
                 </Text>
                 <Text
                   style={{
@@ -128,13 +136,25 @@ export default function WelcomeScreen() {
                     marginTop: spacing.sm,
                   }}
                 >
-                  {slide.subtitle}
+                  {t(slide.subtitleKey)}
                 </Text>
               </View>
             </View>
           </View>
         ))}
       </ScrollView>
+      {/* The very first screen has to offer the language, before anyone has
+          read a word of English. */}
+      <View
+        style={{
+          position: 'absolute',
+          top: insets.top + spacing.sm,
+          end: spacing.lg,
+          zIndex: 10,
+        }}
+      >
+        <LanguageSwitcher testID="welcome-language-switcher" />
+      </View>
       <View
         style={{
           position: 'absolute',
@@ -152,14 +172,14 @@ export default function WelcomeScreen() {
         <SlideIndicator current={currentSlide} />
         <View style={{ marginTop: spacing.lg }}>
           <PrimaryButton
-            label={currentSlide === slides.length - 1 ? 'Enter Shiftora' : 'Continue'}
+            label={currentSlide === slides.length - 1 ? t('auth.welcome.enter') : t('common.next')}
             onPress={handleNext}
-            icon={ArrowRight}
+            icon={ForwardArrow}
             testID="next-button"
           />
         </View>
         <View style={{ marginTop: spacing.md }}>
-          <SecondaryButton label="Skip to sign in" onPress={handleGetStarted} testID="skip-button" />
+          <SecondaryButton label={t('auth.welcome.skipToSignIn')} onPress={handleGetStarted} testID="skip-button" />
         </View>
       </View>
     </View>

@@ -8,11 +8,13 @@ import { AnimatedNumber } from '@/components/ui/animated-number';
 import { StaggerItem } from '@/components/ui/motion';
 import { ProgressRing } from '@/components/ui/progress-ring';
 import { HeroSkeleton, MetricGridSkeleton } from '@/components/ui/skeletons';
+import { useT } from '@/i18n/I18nProvider';
 import { api } from '@/lib/api/api';
 import { colors, spacing, typography } from '@/theme';
 import type { AnalyticsOverview } from '@/types/app';
 
 export function OwnerDashboard() {
+  const t = useT();
   const { data: analytics, isLoading, isRefetching, isError, error, refetch } = useQuery({
     queryKey: ['analytics-overview'],
     queryFn: () => api.get<AnalyticsOverview>('/api/analytics/overview'),
@@ -27,7 +29,7 @@ export function OwnerDashboard() {
         }
       >
         <ErrorState
-          message={error instanceof Error ? error.message : 'Could not load dashboard data'}
+          message={error instanceof Error ? error.message : t('ops.dashboard.loadError')}
           onRetry={() => refetch()}
           testID="owner-dashboard-error"
         />
@@ -41,31 +43,31 @@ export function OwnerDashboard() {
       refreshControl={
         <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={colors.brand.primary} />
       }
-      accessibilityLabel="Owner dashboard"
+      accessibilityLabel={t('ops.dashboard.owner.a11yLabel')}
     >
       <StaggerItem index={0}>
         <View style={{ marginBottom: spacing.lg, gap: spacing.md }}>
           <PrimaryButton
-            label="Create shift"
+            label={t('ops.dashboard.createShiftButton')}
             icon={Plus}
             onPress={() => router.push({ pathname: '/(app)/(tabs)/shifts', params: { create: String(Date.now()) } })}
-            accessibilityLabel="Create new shift"
+            accessibilityLabel={t('ops.dashboard.createShiftA11y')}
           />
           <View style={{ flexDirection: 'row', gap: spacing.md }}>
             <View style={{ flex: 1 }}>
               <SecondaryButton
-                label="Check-in"
+                label={t('ops.dashboard.checkinButton')}
                 icon={LogIn}
                 onPress={() => router.push('/(app)/attendance')}
-                accessibilityLabel="Open check-in"
+                accessibilityLabel={t('ops.dashboard.checkinA11y')}
               />
             </View>
             <View style={{ flex: 1 }}>
               <SecondaryButton
-                label="Floor"
+                label={t('ops.dashboard.owner.floorButton')}
                 icon={LayoutGrid}
                 onPress={() => router.push('/(app)/(tabs)/floor')}
-                accessibilityLabel="Open floor plan"
+                accessibilityLabel={t('ops.dashboard.owner.floorA11y')}
               />
             </View>
           </View>
@@ -81,13 +83,13 @@ export function OwnerDashboard() {
         <>
           <StaggerItem index={1}>
             <HighlightCard>
-              <AccentBadge label="Business pulse" color={colors.brand.gold} tint={colors.warning.muted} />
+              <AccentBadge label={t('ops.dashboard.owner.pulseBadge')} color={colors.brand.gold} tint={colors.warning.muted} />
               <AnimatedNumber
                 value={analytics?.totalHoursWorked ?? 0}
                 textStyle={{ ...typography.display, color: colors.text.primary, marginTop: spacing.lg }}
                 testID="owner-hours-value"
               />
-              <Text style={{ ...typography.body, color: colors.text.secondary }}>hours worked this week</Text>
+              <Text style={{ ...typography.body, color: colors.text.secondary }}>{t('ops.dashboard.owner.hoursWorkedCaption')}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.lg }}>
                 <ProgressRing
                   value={analytics?.attendanceRate ?? 0}
@@ -96,9 +98,9 @@ export function OwnerDashboard() {
                   testID="owner-attendance-ring"
                 />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ ...typography.h4, color: colors.text.primary }}>Attendance rate</Text>
+                  <Text style={{ ...typography.h4, color: colors.text.primary }}>{t('ops.metric.attendanceRate')}</Text>
                   <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: 2 }}>
-                    across this week
+                    {t('ops.dashboard.owner.acrossThisWeek')}
                   </Text>
                 </View>
               </View>
@@ -107,14 +109,14 @@ export function OwnerDashboard() {
 
           <StaggerItem index={2} style={{ marginTop: spacing.lg }}>
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              <MetricCard label="Weekly shifts" value={analytics?.totalShiftsThisWeek ?? 0} icon={Calendar} color={colors.brand.primary} />
-              <MetricCard label="Active staff" value={analytics?.activeEmployeesCount ?? 0} icon={Users} color={colors.brand.gold} />
+              <MetricCard label={t('ops.dashboard.owner.weeklyShiftsLabel')} value={analytics?.totalShiftsThisWeek ?? 0} icon={Calendar} color={colors.brand.primary} />
+              <MetricCard label={t('ops.metric.activeStaff')} value={analytics?.activeEmployeesCount ?? 0} icon={Users} color={colors.brand.gold} />
             </View>
           </StaggerItem>
           <StaggerItem index={3} style={{ marginTop: spacing.sm }}>
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
               <MetricCard
-                label="Open alerts"
+                label={t('ops.dashboard.owner.openAlertsLabel')}
                 value={analytics?.anomalyCount ?? 0}
                 icon={AlertTriangle}
                 color={(analytics?.anomalyCount ?? 0) > 0 ? colors.danger.base : colors.success.base}
@@ -122,7 +124,7 @@ export function OwnerDashboard() {
                 testID="owner-alerts-card"
               />
               <MetricCard
-                label="Coverage"
+                label={t('ops.dashboard.owner.coverageLabel')}
                 value={`${analytics?.totalHoursWorked ?? 0}h`}
                 icon={Activity}
                 color={colors.brand.secondary}

@@ -13,6 +13,8 @@ import { showError } from '@/lib/toast';
 import { getLocationForCheckin } from '@/lib/checkin';
 import { createUuid } from '@/lib/offline-checkin-queue';
 import { colors, spacing, typography } from '@/theme';
+import { useI18n } from '@/i18n/I18nProvider';
+import { mirrorIcon } from '@/i18n/rtl-styles';
 import type { Checkin } from '@/types/app';
 
 function parseShiftAssignmentId(data: string): string | null {
@@ -24,6 +26,7 @@ function parseShiftAssignmentId(data: string): string | null {
 }
 
 export default function ScanQR() {
+  const { t, isRTL } = useI18n();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [permission, requestPermission] = useCameraPermissions();
@@ -54,7 +57,7 @@ export default function ScanQR() {
       router.back();
     },
     onError: (err: Error) => {
-      setError(err.message || 'Check-in failed');
+      setError(err.message || t('schedule.attendance.checkinFailedTitle'));
       setScanned(false);
     },
   });
@@ -64,26 +67,26 @@ export default function ScanQR() {
     ({ data }: { data: string }) => {
       if (scanned || isPending) return;
       if (!isConnected) {
-        setError('QR check-in requires an internet connection');
-        showError('Offline', 'QR check-in requires an internet connection');
+        setError(t('schedule.scanQr.offlineError'));
+        showError(t('schedule.scanQr.offlineTitle'), t('schedule.scanQr.offlineError'));
         return;
       }
       const assignmentId = parseShiftAssignmentId(data);
       if (!assignmentId) {
-        setError('Invalid QR code');
+        setError(t('schedule.scanQr.invalidQr'));
         return;
       }
       setScanned(true);
       setError(null);
       mutate({ shiftAssignmentId: assignmentId, qrPayload: data });
     },
-    [scanned, isPending, mutate, isConnected]
+    [scanned, isPending, mutate, isConnected, t]
   );
 
   if (!permission) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <Text style={styles.message}>Requesting camera access...</Text>
+        <Text style={styles.message}>{t('schedule.scanQr.requestingAccess')}</Text>
       </View>
     );
   }
@@ -91,13 +94,15 @@ export default function ScanQR() {
   if (!permission.granted) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <Text style={styles.message}>Camera permission is required to scan QR codes.</Text>
+        <Text style={styles.message}>{t('schedule.scanQr.permissionDenied')}</Text>
         <ScalePressable onPress={() => requestPermission()} scale={0.98} style={styles.button}>
-          <Text style={styles.buttonText}>Grant permission</Text>
+          <Text style={styles.buttonText}>{t('schedule.scanQr.grantPermission')}</Text>
         </ScalePressable>
         <ScalePressable onPress={() => router.back()} scale={0.98} style={[styles.button, styles.backButton]}>
-          <ChevronLeft color={colors.text.primary} size={20} />
-          <Text style={styles.buttonText}>Back</Text>
+          <View style={mirrorIcon(isRTL)}>
+            <ChevronLeft color={colors.text.primary} size={20} />
+          </View>
+          <Text style={styles.buttonText}>{t('common.back')}</Text>
         </ScalePressable>
       </View>
     );
@@ -122,21 +127,23 @@ export default function ScanQR() {
         ]}
       >
         <ScalePressable onPress={() => router.back()} scale={0.9} style={styles.backBtn}>
-          <ChevronLeft color={colors.text.primary} size={24} />
+          <View style={mirrorIcon(isRTL)}>
+            <ChevronLeft color={colors.text.primary} size={24} />
+          </View>
         </ScalePressable>
-        <Text style={styles.title}>Scan check-in QR</Text>
+        <Text style={styles.title}>{t('schedule.scanQr.title')}</Text>
       </View>
       {error ? (
         <View style={[styles.errorBanner, { top: insets.top + 60 }]}>
           <Text style={styles.errorText}>{error}</Text>
           <Pressable onPress={() => setError(null)}>
-            <Text style={styles.dismissText}>Dismiss</Text>
+            <Text style={styles.dismissText}>{t('schedule.scanQr.dismiss')}</Text>
           </Pressable>
         </View>
       ) : null}
       {checkinMutation.isPending ? (
         <View style={styles.overlay}>
-          <Text style={styles.overlayText}>Checking in...</Text>
+          <Text style={styles.overlayText}>{t('schedule.scanQr.checkingIn')}</Text>
         </View>
       ) : null}
     </View>

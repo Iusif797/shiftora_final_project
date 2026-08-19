@@ -1,6 +1,7 @@
 import { Text, View } from 'react-native';
 import { WifiOff } from 'lucide-react-native';
 import { PrimaryButton } from '@/components/buttons';
+import { useT } from '@/i18n/I18nProvider';
 import { colors, spacing, typography } from '@/theme';
 
 interface ConnectionErrorScreenProps {
@@ -9,6 +10,7 @@ interface ConnectionErrorScreenProps {
 }
 
 export function ConnectionErrorScreen({ onRetry, isRetrying }: ConnectionErrorScreenProps) {
+  const t = useT();
   return (
     <View
       style={{
@@ -34,7 +36,7 @@ export function ConnectionErrorScreen({ onRetry, isRetrying }: ConnectionErrorSc
         <WifiOff color={colors.warning.base} size={36} strokeWidth={2} />
       </View>
       <Text style={{ ...typography.h3, color: colors.text.primary, textAlign: 'center' }}>
-        Can&apos;t reach the server
+        {t('account.error.connectionTitle')}
       </Text>
       <Text
         style={{
@@ -45,9 +47,9 @@ export function ConnectionErrorScreen({ onRetry, isRetrying }: ConnectionErrorSc
           marginBottom: spacing.xl,
         }}
       >
-        Check your internet connection and try again. The server may take a moment to wake up.
+        {t('account.error.connectionBody')}
       </Text>
-      <PrimaryButton label="Try again" onPress={onRetry} loading={isRetrying} testID="connection-retry-button" />
+      <PrimaryButton label={t('common.retry')} onPress={onRetry} loading={isRetrying} testID="connection-retry-button" />
     </View>
   );
 }

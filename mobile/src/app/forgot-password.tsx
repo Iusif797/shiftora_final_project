@@ -8,9 +8,11 @@ import { AuthBackground, GlassPanel } from '@/components/app-shell';
 import { PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { FormField } from '@/components/form-field';
 import { authClient } from '@/lib/auth/auth-client';
+import { useT } from '@/i18n/I18nProvider';
 import { colors, spacing, typography } from '@/theme';
 
 export default function ForgotPassword() {
+  const t = useT();
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,12 +27,12 @@ export default function ForgotPassword() {
       setError(null);
       setSubmitted(true);
     },
-    onError: () => setError('Could not send the reset email. Check your connection and try again.'),
+    onError: () => setError(t('auth.error.resetEmailFailed')),
   });
 
   const submit = () => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError('Enter a valid email address');
+      setError(t('auth.error.emailInvalid'));
       return;
     }
     setError(null);
@@ -43,19 +45,19 @@ export default function ForgotPassword() {
         <ScrollView contentContainerStyle={{ flexGrow: 1, padding: spacing.xxl, justifyContent: 'center' }} keyboardShouldPersistTaps="handled">
           <GlassPanel>
             <Mail color={colors.brand.gold} size={30} />
-            <Text style={{ ...typography.h1, color: colors.text.primary, marginTop: spacing.lg }}>Reset password</Text>
+            <Text style={{ ...typography.h1, color: colors.text.primary, marginTop: spacing.lg }}>{t('auth.forgotPassword.title')}</Text>
             <Text style={{ ...typography.body, color: colors.text.secondary, marginTop: spacing.sm, marginBottom: spacing.xl }}>
               {submitted
-                ? 'If an account exists for that email, a 60-minute reset link is on its way.'
-                : 'Enter your account email and we’ll send a secure reset link.'}
+                ? t('auth.forgotPassword.subtitleSuccess')
+                : t('auth.forgotPassword.subtitle')}
             </Text>
             {!submitted ? (
               <View style={{ gap: spacing.lg }}>
                 <FormField
-                  label="Email"
+                  label={t('auth.field.emailLabel')}
                   value={email}
                   onChangeText={setEmail}
-                  placeholder="you@restaurant.com"
+                  placeholder={t('auth.field.emailPlaceholder')}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoComplete="email"
@@ -63,11 +65,11 @@ export default function ForgotPassword() {
                   testID="forgot-email-input"
                 />
                 {error ? <Text style={{ ...typography.bodySmall, color: colors.danger.base }}>{error}</Text> : null}
-                <PrimaryButton label="Send reset link" onPress={submit} loading={mutation.isPending} testID="forgot-submit" />
+                <PrimaryButton label={t('auth.forgotPassword.submit')} onPress={submit} loading={mutation.isPending} testID="forgot-submit" />
               </View>
             ) : null}
             <View style={{ marginTop: spacing.md }}>
-              <SecondaryButton label="Back to sign in" onPress={() => router.replace('/sign-in')} />
+              <SecondaryButton label={t('auth.nav.backToSignIn')} onPress={() => router.replace('/sign-in')} />
             </View>
           </GlassPanel>
         </ScrollView>

@@ -11,6 +11,8 @@ import { ErrorState, SurfaceCard } from '@/components/cards';
 import { DeleteAccountSection } from '@/components/delete-account';
 import { FormField } from '@/components/form-field';
 import { ScalePressable } from '@/components/ui/pressable';
+import { useT } from '@/i18n/I18nProvider';
+import { avatarEditBadge } from '@/i18n/rtl-styles';
 import { api } from '@/lib/api/api';
 import { useSession, useInvalidateSession } from '@/lib/auth/use-session';
 import { pickImage } from '@/lib/file-picker';
@@ -21,6 +23,7 @@ import type { AppUser } from '@/types/app';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ProfileScreen() {
+  const t = useT();
   const { data: session, isError: sessionError, error: sessionErrorObj, refetch: refetchSession } = useSession();
   const invalidateSession = useInvalidateSession();
   const user = session?.user as AppUser | undefined;
@@ -64,10 +67,10 @@ export default function ProfileScreen() {
     return (
       <AppBackground>
         <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-          <ScreenHeader title="Profile" />
+          <ScreenHeader title={t('account.profile.title')} />
           <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: spacing.xl }}>
             <ErrorState
-              message={sessionErrorObj instanceof Error ? sessionErrorObj.message : 'Could not load profile'}
+              message={sessionErrorObj instanceof Error ? sessionErrorObj.message : t('account.profile.loadError')}
               onRetry={() => refetchSession()}
               testID="profile-error"
             />
@@ -80,7 +83,7 @@ export default function ProfileScreen() {
   return (
     <AppBackground>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        <ScreenHeader title="Profile" />
+        <ScreenHeader title={t('account.profile.title')} />
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: 20, paddingTop: spacing.md, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
@@ -115,9 +118,7 @@ export default function ProfileScreen() {
                 disabled={isUploading}
                 scale={0.9}
                 style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  right: 0,
+                  ...avatarEditBadge,
                   width: 36,
                   height: 36,
                   borderRadius: radius.full,
@@ -136,7 +137,7 @@ export default function ProfileScreen() {
               </ScalePressable>
             </View>
             <View style={{ marginTop: spacing.md }}>
-              <AccentBadge label={user?.role ?? 'employee'} color={role.color} tint={`${role.color}18`} />
+              <AccentBadge label={t(`role.${user?.role ?? 'employee'}`)} color={role.color} tint={`${role.color}18`} />
             </View>
           </View>
 
@@ -144,10 +145,10 @@ export default function ProfileScreen() {
             {isEditing ? (
               <View style={{ gap: spacing.lg }}>
                 <FormField
-                  label="Full Name"
+                  label={t('account.profile.fullNameLabel')}
                   value={name}
                   onChangeText={setName}
-                  placeholder="Enter your name"
+                  placeholder={t('account.profile.namePlaceholder')}
                   focused={true}
                   onFocus={() => {}}
                   onBlur={() => {}}
@@ -155,11 +156,11 @@ export default function ProfileScreen() {
                 />
                 <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm }}>
                   <View style={{ flex: 1 }}>
-                    <SecondaryButton label="Cancel" onPress={() => setIsEditing(false)} />
+                    <SecondaryButton label={t('common.cancel')} onPress={() => setIsEditing(false)} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <PrimaryButton
-                      label="Save"
+                      label={t('common.save')}
                       icon={Check}
                       onPress={handleSave}
                       loading={updateProfileMutation.isPending}
@@ -171,17 +172,17 @@ export default function ProfileScreen() {
             ) : (
               <View style={{ gap: spacing.lg }}>
                 <View>
-                  <Text style={{ ...typography.label, color: colors.text.tertiary, marginBottom: 4 }}>Full Name</Text>
+                  <Text style={{ ...typography.label, color: colors.text.tertiary, marginBottom: 4 }}>{t('account.profile.fullNameLabel')}</Text>
                   <Text style={{ ...typography.h3, color: colors.text.primary }}>{user?.name}</Text>
                 </View>
                 <View>
-                  <Text style={{ ...typography.label, color: colors.text.tertiary, marginBottom: 4 }}>Email Address</Text>
+                  <Text style={{ ...typography.label, color: colors.text.tertiary, marginBottom: 4 }}>{t('account.profile.emailLabel')}</Text>
                   <Text style={{ ...typography.body, color: colors.text.secondary }}>{user?.email}</Text>
                 </View>
-                
+
                 <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
-                  <SecondaryButton label="Edit Profile" icon={Edit2} onPress={() => setIsEditing(true)} />
-                  <SecondaryButton label="Restaurant settings" icon={Settings} onPress={() => router.push('/(app)/settings')} />
+                  <SecondaryButton label={t('account.profile.editProfile')} icon={Edit2} onPress={() => setIsEditing(true)} />
+                  <SecondaryButton label={t('account.profile.restaurantSettings')} icon={Settings} onPress={() => router.push('/(app)/settings')} />
                 </View>
               </View>
             )}

@@ -21,9 +21,12 @@ import { submitCheckin, submitCheckout } from '@/lib/submit-checkin';
 import { showAlert, showError, showSuccess } from '@/lib/toast';
 import { formatDate, formatTime } from '@/lib/formatters';
 import { colors, spacing, typography } from '@/theme';
+import { useI18n } from '@/i18n/I18nProvider';
+import { mirrorIcon } from '@/i18n/rtl-styles';
 import type { Checkin, ShiftAssignment } from '@/types/app';
 
 export default function Attendance() {
+  const { t, isRTL } = useI18n();
   const queryClient = useQueryClient();
   const [photoCheckinAssignmentId, setPhotoCheckinAssignmentId] = useState<string | null>(null);
   const { data: offlineQueue } = useOfflineCheckinQueue();
@@ -60,15 +63,15 @@ export default function Attendance() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setPhotoCheckinAssignmentId(null);
       if (result.mode === 'queued') {
-        showSuccess('Saved offline', 'Check-in will sync when you are online');
+        showSuccess(t('schedule.attendance.checkinSavedOfflineTitle'), t('schedule.attendance.checkinSavedOfflineBody'));
       } else {
-        showSuccess('Clocked in', 'Your shift has started');
+        showSuccess(t('schedule.attendance.clockedInTitle'), t('schedule.attendance.clockedInBody'));
       }
       void invalidateAttendance();
     },
     onError: (err: Error) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      showError('Check-in failed', err.message);
+      showError(t('schedule.attendance.checkinFailedTitle'), err.message);
     },
   });
 
@@ -76,7 +79,7 @@ export default function Attendance() {
     if (!nextShift?.shift) return;
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      showAlert('Camera access', 'Camera permission is required for photo check-in.');
+      showAlert(t('schedule.attendance.cameraAccessTitle'), t('schedule.attendance.cameraAccessBody'));
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -97,21 +100,21 @@ export default function Attendance() {
       if (pendingCheckin) {
         return submitCheckout({ pendingCheckinLocalId: pendingCheckin.localId });
       }
-      if (!activeCheckin?.id) throw new Error('No active check-in');
+      if (!activeCheckin?.id) throw new Error(t('schedule.attendance.noActiveCheckinError'));
       return submitCheckout({ checkinId: activeCheckin.id });
     },
     onSuccess: (result) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (result.mode === 'queued') {
-        showSuccess('Saved offline', 'Checkout will sync when you are online');
+        showSuccess(t('schedule.attendance.checkoutSavedOfflineTitle'), t('schedule.attendance.checkoutSavedOfflineBody'));
       } else {
-        showSuccess('Clocked out', 'Your shift has ended');
+        showSuccess(t('schedule.attendance.clockedOutTitle'), t('schedule.attendance.clockedOutBody'));
       }
       void invalidateAttendance();
     },
     onError: (err: Error) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      showError('Checkout failed', err.message);
+      showError(t('schedule.attendance.checkoutFailedTitle'), err.message);
     },
   });
 
@@ -124,7 +127,7 @@ export default function Attendance() {
   const pendingShiftTitle =
     nextShift?.shift?.title ??
     upcoming?.find((assignment) => assignment.id === pendingCheckin?.shiftAssignmentId)?.shift?.title ??
-    'Current shift';
+    t('schedule.attendance.currentShiftFallback');
 
   const displayActive = activeCheckin ?? (pendingCheckin
     ? {
@@ -142,11 +145,13 @@ export default function Attendance() {
 
   return (
     <ScreenScroll
-      title="Attendance"
-      subtitle="Check in, check out, and review shift history"
+      title={t('schedule.attendance.title')}
+      subtitle={t('schedule.attendance.subtitle')}
       leftSlot={
         <ScalePressable onPress={() => router.back()} testID="attendance-back" hitSlop={12} scale={0.9} style={{ padding: 4 }}>
-          <ChevronLeft color={colors.text.primary} size={24} strokeWidth={2} />
+          <View style={mirrorIcon(isRTL)}>
+            <ChevronLeft color={colors.text.primary} size={24} strokeWidth={2} />
+          </View>
         </ScalePressable>
       }
       refreshControl={<RefreshControl refreshing={refetchingActive || refetchingHistory} onRefresh={onRetry} tintColor={colors.brand.gold} />}
@@ -157,8 +162,8 @@ export default function Attendance() {
         <SurfaceCard>
           <Text style={{ ...typography.body, color: colors.warning.base }}>
             {pendingCount === 1
-              ? '1 attendance action waiting to sync'
-              : `${pendingCount} attendance actions waiting to sync`}
+              ? t('schedule.attendance.pendingSyncOne')
+              : t('schedule.attendance.pendingSyncMany', { count: pendingCount })}
           </Text>
         </SurfaceCard>
         </View>
@@ -176,7 +181,7 @@ export default function Attendance() {
               ? errorActiveObj.message
               : errorHistoryObj instanceof Error
                 ? errorHistoryObj.message
-                : 'Could not load attendance data'
+                : t('schedule.attendance.loadError')
           }
           onRetry={onRetry}
           testID="attendance-error"
@@ -184,19 +189,19 @@ export default function Attendance() {
       ) : displayActive ? (
         <HighlightCard>
           <AccentBadge
-            label={'pending' in displayActive && displayActive.pending ? 'Pending sync' : 'Checked in'}
+            label={'pending' in displayActive && displayActive.pending ? t('schedule.attendance.pendingSyncBadge') : t('schedule.attendance.checkedInBadge')}
             color={'pending' in displayActive && displayActive.pending ? colors.warning.base : colors.success.base}
             tint={'pending' in displayActive && displayActive.pending ? colors.warning.muted : colors.success.muted}
           />
           <Text style={{ ...typography.h2, color: colors.text.primary, marginTop: spacing.lg }}>
-            {displayActive.shiftAssignment?.shift?.title ?? 'Current shift'}
+            {displayActive.shiftAssignment?.shift?.title ?? t('schedule.attendance.currentShiftFallback')}
           </Text>
           <Text style={{ ...typography.body, color: colors.text.secondary, marginTop: spacing.sm }}>
-            Started at {formatTime(displayActive.checkinTime)}
+            {t('schedule.attendance.startedAt', { time: formatTime(displayActive.checkinTime) })}
           </Text>
           <View style={{ marginTop: spacing.xl }}>
             <PrimaryButton
-              label="Finish shift"
+              label={t('schedule.attendance.finishShift')}
               onPress={() => checkoutMutation.mutate()}
               loading={checkoutMutation.isPending}
               icon={LogOut}
@@ -206,7 +211,7 @@ export default function Attendance() {
         </HighlightCard>
       ) : canCheckIn && nextShift?.shift ? (
         <HighlightCard>
-          <AccentBadge label="Ready to start" color={colors.brand.gold} tint={colors.warning.muted} />
+          <AccentBadge label={t('schedule.attendance.readyToStart')} color={colors.brand.gold} tint={colors.warning.muted} />
           <Text style={{ ...typography.h2, color: colors.text.primary, marginTop: spacing.lg }}>
             {nextShift.shift.title}
           </Text>
@@ -215,21 +220,21 @@ export default function Attendance() {
           </Text>
           <View style={{ marginTop: spacing.xl, gap: spacing.md }}>
             <PrimaryButton
-              label="Start shift"
+              label={t('schedule.attendance.startShift')}
               onPress={() => checkinMutation.mutate({ shiftAssignmentId: nextShift.id })}
               loading={Boolean(checkinMutation.isPending && !photoCheckinAssignmentId)}
               icon={LogIn}
               testID="attendance-checkin-button"
             />
             <SecondaryButton
-              label="Check in with photo"
+              label={t('schedule.attendance.checkInWithPhoto')}
               onPress={handlePhotoCheckin}
               disabled={checkinMutation.isPending}
               icon={Camera}
               testID="attendance-photo-checkin-button"
             />
             <SecondaryButton
-              label="Scan QR"
+              label={t('schedule.attendance.scanQr')}
               onPress={() => router.push('/attendance/scan-qr')}
               disabled={checkinMutation.isPending}
               testID="attendance-scan-qr-button"
@@ -239,8 +244,8 @@ export default function Attendance() {
       ) : (
         <EmptyState
           icon={Clock3}
-          title="No active attendance"
-          description="Your next shift will appear here when it's time to check in."
+          title={t('schedule.attendance.emptyTitle')}
+          description={t('schedule.attendance.emptyDescription')}
           color={colors.brand.primary}
         />
       )}
@@ -252,11 +257,11 @@ export default function Attendance() {
             <StaggerItem key={entry.id} index={index}>
               <SurfaceCard>
                 <Text style={{ ...typography.h4, color: colors.text.primary }}>
-                  {entry.shiftAssignment?.shift?.title ?? 'Recorded shift'}
+                  {entry.shiftAssignment?.shift?.title ?? t('schedule.attendance.recordedShiftFallback')}
                 </Text>
                 <Text style={{ ...typography.bodySmall, color: colors.text.secondary, marginTop: 4 }}>
                   {formatDate(entry.checkinTime)} · {formatTime(entry.checkinTime)}
-                  {entry.checkoutTime ? ` - ${formatTime(entry.checkoutTime)}` : ' - in progress'}
+                  {entry.checkoutTime ? ` - ${formatTime(entry.checkoutTime)}` : ` - ${t('schedule.attendance.inProgress')}`}
                 </Text>
               </SurfaceCard>
             </StaggerItem>
@@ -264,8 +269,8 @@ export default function Attendance() {
         ) : !loadingHistory ? (
           <EmptyState
             icon={Clock3}
-            title="No attendance history"
-            description="Your completed shifts will start building your attendance timeline here."
+            title={t('schedule.attendance.historyEmptyTitle')}
+            description={t('schedule.attendance.historyEmptyDescription')}
             color={colors.brand.gold}
           />
         ) : null}

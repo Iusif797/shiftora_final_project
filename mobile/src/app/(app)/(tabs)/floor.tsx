@@ -18,6 +18,7 @@ import { EmptyState, SurfaceCard } from '@/components/cards';
 import { StaggerItem } from '@/components/ui/motion';
 import { ScalePressable } from '@/components/ui/pressable';
 import { TileGridSkeleton } from '@/components/ui/skeletons';
+import { useT } from '@/i18n/I18nProvider';
 import { api } from '@/lib/api/api';
 import { useSession } from '@/lib/auth/use-session';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
@@ -28,6 +29,12 @@ const tableColors = {
   FREE: colors.success.base,
   OCCUPIED: colors.danger.base,
   RESERVED: colors.warning.base,
+} as const;
+
+const tableStatusKey = {
+  FREE: 'ops.floor.status.free',
+  OCCUPIED: 'ops.floor.status.occupied',
+  RESERVED: 'ops.floor.status.reserved',
 } as const;
 
 function useOccupiedPulse(active: boolean) {
@@ -52,6 +59,7 @@ function useOccupiedPulse(active: boolean) {
 }
 
 function TableTile({ table }: { table: RestaurantTable }) {
+  const t = useT();
   const activeOrder = table.orders?.[0];
   const tone = tableColors[table.status] ?? colors.text.tertiary;
   const isOccupied = table.status === 'OCCUPIED';
@@ -79,8 +87,12 @@ function TableTile({ table }: { table: RestaurantTable }) {
           >
             <Text style={{ ...typography.h2, color: tone }}>{table.number}</Text>
           </Animated.View>
-          <Text style={{ ...typography.body, color: colors.text.primary }}>{table.label ?? `Table ${table.number}`}</Text>
-          <Text style={{ ...typography.caption, color: colors.text.tertiary, textTransform: 'capitalize' }}>{table.status.toLowerCase()}</Text>
+          <Text style={{ ...typography.body, color: colors.text.primary }}>
+            {table.label ?? t('ops.floor.tableLabel', { number: table.number })}
+          </Text>
+          <Text style={{ ...typography.caption, color: colors.text.tertiary, textTransform: 'capitalize' }}>
+            {t(tableStatusKey[table.status] ?? tableStatusKey.FREE)}
+          </Text>
           {activeOrder ? (
             <Text style={{ ...typography.caption, color: colors.brand.gold }}>${activeOrder.totalAmount.toFixed(2)}</Text>
           ) : null}
@@ -91,6 +103,7 @@ function TableTile({ table }: { table: RestaurantTable }) {
 }
 
 export default function FloorScreen() {
+  const t = useT();
   const { data: session } = useSession();
   const role = (session?.user as AppUser | undefined)?.role ?? 'employee';
   const canManageMenu = role === 'owner' || role === 'manager';
@@ -102,8 +115,8 @@ export default function FloorScreen() {
 
   return (
     <ScreenScroll
-      title="Floor"
-      subtitle="Tables and live orders"
+      title={t('ops.floor.title')}
+      subtitle={t('ops.floor.subtitle')}
       testID="floor-screen"
       refreshControl={
         <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={colors.brand.gold} />
@@ -113,13 +126,13 @@ export default function FloorScreen() {
         <StaggerItem index={0}>
           <View style={{ gap: spacing.sm, marginBottom: spacing.lg }}>
             <PrimaryButton
-              label="Manage tables"
+              label={t('ops.floor.manageTables')}
               icon={Grid3x3}
               onPress={() => router.push('/tables-manage' as Href)}
               testID="manage-tables-button"
             />
             <SecondaryButton
-              label="Manage menu"
+              label={t('ops.floor.manageMenu')}
               icon={UtensilsCrossed}
               onPress={() => router.push('/menu-manage' as Href)}
               testID="manage-menu-button"
@@ -137,8 +150,12 @@ export default function FloorScreen() {
       {!isLoading && (tables?.length ?? 0) === 0 ? (
         <EmptyState
           icon={LayoutGrid}
-          title="No tables"
-          description={canManageMenu ? 'Add table numbers in Manage tables.' : 'Ask a manager to add tables.'}
+          title={t('ops.floor.emptyTitle')}
+          description={
+            canManageMenu
+              ? t('ops.floor.emptyDescriptionManage')
+              : t('ops.floor.emptyDescriptionAsk')
+          }
           color={colors.brand.primary}
         />
       ) : null}
