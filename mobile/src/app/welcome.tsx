@@ -5,7 +5,7 @@ import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowRight, Sparkles } from 'lucide-react-native';
+import { ArrowRight } from 'lucide-react-native';
 import PagerView from 'react-native-pager-view';
 import { PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { colors, fonts, radius, spacing, typography } from '@/theme';
@@ -150,11 +150,6 @@ export default function WelcomeScreen() {
                 },
               ]}
             >
-              <View style={styles.tagBadge}>
-                <Sparkles size={12} color={colors.brand.gold} />
-                <Text style={styles.tagText}>{slide.tag}</Text>
-              </View>
-
               <Text style={styles.title}>{slide.title}</Text>
               <Text style={styles.subtitle}>{slide.subtitle}</Text>
             </View>
@@ -207,25 +202,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
     paddingHorizontal: spacing.xl,
-  },
-  tagBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    borderRadius: radius.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    marginBottom: spacing.md,
-  },
-  tagText: {
-    ...typography.label,
-    color: colors.text.primary,
-    fontSize: 11,
-    letterSpacing: 1.1,
   },
   title: {
     ...typography.display,
