@@ -32,10 +32,12 @@ export interface PlanFeatures {
   exportReports: boolean;
 }
 
-export const PLANS: Record<PlanTier, { name: string; price: string; features: PlanFeatures }> = {
+// Приложение раздаётся бесплатно: продажи тарифов нет, цен здесь тоже нет.
+// Поле `price` удалено намеренно — прайс-лист не должен существовать в коде,
+// иначе он рано или поздно снова утечёт в публичный ответ API.
+export const PLANS: Record<PlanTier, { name: string; features: PlanFeatures }> = {
   free: {
     name: "Free",
-    price: "$0/mo",
     features: {
       maxEmployees: 5,
       maxShiftsPerMonth: 20,
@@ -49,7 +51,6 @@ export const PLANS: Record<PlanTier, { name: string; price: string; features: Pl
   },
   pro: {
     name: "Pro",
-    price: "$29/mo",
     features: {
       maxEmployees: 25,
       maxShiftsPerMonth: -1,
@@ -63,7 +64,6 @@ export const PLANS: Record<PlanTier, { name: string; price: string; features: Pl
   },
   business: {
     name: "Business",
-    price: "$79/mo",
     features: {
       maxEmployees: -1,
       maxShiftsPerMonth: -1,

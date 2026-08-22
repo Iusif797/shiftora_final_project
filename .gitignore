@@ -61,3 +61,10 @@ generated/prisma
 
 # Claude/Cowork temporary worktrees (создаются Claude-агентами, не должны попадать в репо)
 .claude/worktrees/
+
+# EAS signing credentials — never commit
+credentials.json
+credentials/
+
+# local eas-cli scratch
+eas-temp/

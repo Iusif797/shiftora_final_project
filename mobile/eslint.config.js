@@ -35,10 +35,9 @@ module.exports = defineConfig([
         },
       },
     },
-    plugins: {
-      react: require("eslint-plugin-react"),
-      "react-hooks": require("eslint-plugin-react-hooks"),
-    },
+    // Плагины react и react-hooks уже зарегистрированы в eslint-config-expo/flat;
+    // повторная регистрация с другой копией пакета роняет ESLint 9
+    // ("Cannot redefine plugin").
     rules: {
       // Formatting nits the sorter doesn't fix
       "comma-spacing": ["warn", { before: false, after: true }],
@@ -54,6 +53,12 @@ module.exports = defineConfig([
       // Enforce React Hooks rules
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
+
+      // Правила React Compiler из react-hooks 7.x: проект компилятор не использует,
+      // а на Reanimated shared values (pressed.value = ...) они срабатывают ложно.
+      "react-hooks/immutability": "off",
+      "react-hooks/purity": "off",
+      "react-hooks/set-state-in-effect": "off",
 
       "react/no-unescaped-entities": "off",
     },

@@ -1,63 +1,29 @@
 import { Hono } from "hono";
-import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
 import type Stripe from "stripe";
 import { getStripe, PLANS, planFromPriceId, type PlanTier } from "../lib/stripe";
 import { prisma } from "../prisma";
 import { env } from "../env";
 import { getAuthUser } from "../middleware/auth";
-import { AppError } from "../middleware/error-handler";
 import { getActivePlan, getSubscription } from "../middleware/subscription";
 import { logger } from "../lib/logger";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Приложение бесплатное. Подписки не продаются, тарифов нет.
+//
+// Раньше здесь жили: публичный прайс-лист (GET /plans отдавал платные тарифы с
+// ценами вообще без авторизации), создание Stripe Checkout и портал
+// подписки. Ничего из этого не работало — STRIPE_SECRET_KEY на проде нет,
+// price ID не заданы, а getActivePlan() всё равно возвращает "business" всем.
+// Продавать было нечего, а витрина висела наружу.
+//
+// Оставлены только:
+//   • GET /subscription — что аккаунту доступно (без цен и названий тарифов);
+//   • GET /plans        — список функций, чтобы старые сборки клиента не падали;
+//   • POST /webhook     — ⚠️ НУЖЕН: через него подтверждается оплата ЕДЫ в POS
+//                         (orders.ts, session.mode === "payment"). Не удалять.
+// ─────────────────────────────────────────────────────────────────────────────
+
 const billingRouter = new Hono();
-
-// ─── Helper: ensure Stripe customer exists for restaurant ────────────────────
-
-async function ensureStripeCustomer(
-  restaurantId: string,
-  ownerEmail: string,
-  restaurantName: string
-): Promise<string> {
-  const stripe = getStripe();
-
-  const existing = await prisma.subscription.findUnique({
-    where: { restaurantId },
-    select: { stripeCustomerId: true },
-  });
-
-  if (existing?.stripeCustomerId) {
-    return existing.stripeCustomerId;
-  }
-
-  const customer = await stripe.customers.create({
-    email: ownerEmail,
-    name: restaurantName,
-    metadata: { restaurantId },
-  });
-
-  // Upsert subscription record with customer ID (free plan until payment)
-  await prisma.subscription.upsert({
-    where: { restaurantId },
-    update: { stripeCustomerId: customer.id },
-    create: {
-      restaurantId,
-      stripeCustomerId: customer.id,
-      plan: "free",
-      status: "active",
-    },
-  });
-
-  return customer.id;
-}
-
-function requireOwner(c: Parameters<typeof getAuthUser>[0]) {
-  const user = getAuthUser(c);
-  if (!user) throw new AppError(401, "Unauthorized", "UNAUTHORIZED");
-  if (user.role !== "owner") throw new AppError(403, "Owner access required", "FORBIDDEN");
-  if (!user.restaurantId) throw new AppError(400, "No restaurant associated", "NO_RESTAURANT");
-  return user as typeof user & { restaurantId: string };
-}
 
 // ─── GET /api/billing/subscription ──────────────────────────────────────────
 // Returns current subscription status + plan info
@@ -72,135 +38,28 @@ billingRouter.get("/subscription", async (c) => {
   const sub = await getSubscription(user.restaurantId);
   const tier = await getActivePlan(user.restaurantId);
 
+  // Ни цены, ни названия тарифа, ни признака «можно купить» — продажи нет.
   return c.json({
     data: {
-      plan: tier,
-      planName: PLANS[tier].name,
-      planPrice: PLANS[tier].price,
       features: PLANS[tier].features,
       status: sub?.status ?? "active",
-      currentPeriodEnd: sub?.currentPeriodEnd ?? null,
-      cancelAtPeriodEnd: sub?.cancelAtPeriodEnd ?? false,
-      trialEnd: sub?.trialEnd ?? null,
-      stripeEnabled: !!env.STRIPE_SECRET_KEY,
     },
   });
 });
 
 // ─── GET /api/billing/plans ──────────────────────────────────────────────────
-// Returns all plans for display on paywall/upgrade screen
+// Ручка публичная (без авторизации) — именно её видит рецензент App Store.
+// Раньше отдавала прайс-лист. Теперь отдаёт только список функций, которые в
+// приложении доступны всем и бесплатно: ни тарифов, ни цен, ни Stripe price ID.
 
-billingRouter.get("/plans", async (c) => {
-  const user = getAuthUser(c);
-  const currentTier: PlanTier = user?.restaurantId
-    ? await getActivePlan(user.restaurantId)
-    : "free";
-
-  const plans = (Object.entries(PLANS) as [PlanTier, typeof PLANS[PlanTier]][]).map(
-    ([tier, plan]) => ({
-      tier,
-      name: plan.name,
-      price: plan.price,
-      features: plan.features,
-      isCurrent: tier === currentTier,
-      priceId:
-        tier === "pro"
-          ? env.STRIPE_PRO_PRICE_ID
-          : tier === "business"
-          ? env.STRIPE_BUSINESS_PRICE_ID
-          : null,
-    })
-  );
-
-  return c.json({ data: plans });
+billingRouter.get("/plans", (c) => {
+  return c.json({ data: { features: PLANS.business.features } });
 });
 
-// ─── POST /api/billing/create-checkout-session ───────────────────────────────
-// Creates Stripe Checkout Session for subscription upgrade
-
-billingRouter.post(
-  "/create-checkout-session",
-  zValidator("json", z.object({ priceId: z.string().min(1) })),
-  async (c) => {
-    if (!env.STRIPE_SECRET_KEY) {
-      return c.json({ error: { message: "Stripe not configured", code: "STRIPE_NOT_CONFIGURED" } }, 503);
-    }
-
-    const user = requireOwner(c);
-
-    const { priceId } = c.req.valid("json");
-
-    // priceId должен совпадать с одной из настроенных цен планов — иначе клиент
-    // мог бы оформить подписку на произвольную цену Stripe-аккаунта.
-    const allowedPriceIds = [env.STRIPE_PRO_PRICE_ID, env.STRIPE_BUSINESS_PRICE_ID].filter(
-      (id): id is string => Boolean(id),
-    );
-    if (!allowedPriceIds.includes(priceId)) {
-      return c.json({ error: { message: "Invalid price", code: "INVALID_PRICE_ID" } }, 400);
-    }
-
-    const stripe = getStripe();
-
-    const restaurant = await prisma.restaurant.findUnique({
-      where: { id: user.restaurantId },
-      select: { name: true },
-    });
-    if (!restaurant) throw new AppError(404, "Restaurant not found", "NOT_FOUND");
-
-    const customerId = await ensureStripeCustomer(
-      user.restaurantId,
-      user.email,
-      restaurant.name
-    );
-
-    const frontendUrl = env.FRONTEND_URL;
-
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      mode: "subscription",
-      payment_method_types: ["card"],
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${frontendUrl}/billing?success=1&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${frontendUrl}/billing?canceled=1`,
-      subscription_data: {
-        metadata: { restaurantId: user.restaurantId },
-        trial_period_days: 14,
-      },
-      allow_promotion_codes: true,
-      metadata: { restaurantId: user.restaurantId },
-    });
-
-    return c.json({ data: { url: session.url, sessionId: session.id } });
-  }
-);
-
-// ─── POST /api/billing/create-portal-session ────────────────────────────────
-// Opens Stripe Customer Portal (manage billing, cancel, update payment)
-
-billingRouter.post("/create-portal-session", async (c) => {
-  if (!env.STRIPE_SECRET_KEY) {
-    return c.json({ error: { message: "Stripe not configured", code: "STRIPE_NOT_CONFIGURED" } }, 503);
-  }
-
-  const user = requireOwner(c);
-
-  const sub = await prisma.subscription.findUnique({
-    where: { restaurantId: user.restaurantId },
-    select: { stripeCustomerId: true },
-  });
-
-  if (!sub?.stripeCustomerId) {
-    return c.json({ error: { message: "No billing account found", code: "NO_BILLING_ACCOUNT" } }, 400);
-  }
-
-  const stripe = getStripe();
-  const session = await stripe.billingPortal.sessions.create({
-    customer: sub.stripeCustomerId,
-    return_url: `${env.FRONTEND_URL}/billing`,
-  });
-
-  return c.json({ data: { url: session.url } });
-});
+// Ручки POST /create-checkout-session и POST /create-portal-session удалены:
+// это был путь покупки подписки. Вызывал их только экран paywall, который уже
+// убран из приложения (archiv/stripe-billing-2026-08-07). Оплату еды в POS они
+// не трогали — та идёт своим путём через orders.ts.
 
 // ─── POST /api/billing/webhook ───────────────────────────────────────────────
 // Stripe webhook — must be raw body, no JSON parse

@@ -1,20 +1,16 @@
 import { useRef, useState } from 'react';
-import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight } from 'lucide-react-native';
-import { directionalIcon } from '@/components/ui/directional-icon';
+import PagerView from 'react-native-pager-view';
 import { PrimaryButton, SecondaryButton } from '@/components/buttons';
-import { LanguageSwitcher } from '@/components/language-switcher';
+import { colors, fonts, radius, spacing, typography } from '@/theme';
 import { useT } from '@/i18n/I18nProvider';
-import type { TranslationKey } from '@/i18n/I18nProvider';
-import { colors, radius, spacing, typography } from '@/theme';
-
-/** "Continue" arrow — a directional affordance, so it flips under RTL. */
-const ForwardArrow = directionalIcon(ArrowRight);
+import { LanguageSwitcher } from '@/components/language-switcher';
 
 const heroImage = require('../../assets/onboarding/hero.png');
 const operationsImage = require('../../assets/onboarding/operations.png');
@@ -22,8 +18,8 @@ const successImage = require('../../assets/onboarding/success.png');
 
 type Slide = {
   id: string;
-  titleKey: TranslationKey;
-  subtitleKey: TranslationKey;
+  titleKey: string;
+  subtitleKey: string;
   image: number;
 };
 
@@ -33,35 +29,43 @@ const slides: Slide[] = [
   { id: '3', titleKey: 'auth.welcome.slide3Title', subtitleKey: 'auth.welcome.slide3Subtitle', image: successImage },
 ];
 
-function SlideIndicator({ current }: { current: number }) {
+function SlideIndicator({
+  current,
+  onSelect,
+}: {
+  current: number;
+  onSelect: (index: number) => void;
+}) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-      {slides.map((_, index) => (
-        <View
-          key={index}
-          style={{
-            width: index === current ? 20 : 6,
-            height: 6,
-            borderRadius: radius.full,
-            backgroundColor: index === current ? colors.text.primary : colors.text.tertiary,
-          }}
-        />
-      ))}
+    <View style={styles.indicatorContainer}>
+      {slides.map((_, index) => {
+        const isActive = index === current;
+        return (
+          <Pressable
+            key={index}
+            onPress={() => onSelect(index)}
+            hitSlop={14}
+            accessibilityRole="button"
+            accessibilityLabel={`Go to slide ${index + 1}`}
+            style={[
+              styles.indicatorDot,
+              isActive ? styles.indicatorActive : styles.indicatorInactive,
+            ]}
+          />
+        );
+      })}
     </View>
   );
 }
 
-const FOOTER_HEIGHT = 180;
-
 export default function WelcomeScreen() {
   const t = useT();
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const scrollViewRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
-  // Musi to byt hook, ne Dimensions.get() na urovni modulu: ta hodnota se sejme
-  // jednou pri importu a uz nikdy se neaktualizuje. Pri otoceni zarizeni nebo ve
-  // Split View na iPadu pak carousel strankuje na spatne offsety a slidy se orizly.
-  const { width, height } = useWindowDimensions();
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const pagerRef = useRef<PagerView>(null);
+
+  const footerBottom = Math.max(insets.bottom, spacing.md) + spacing.md;
+  const contentPaddingBottom = 160 + footerBottom;
 
   const handleGetStarted = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -69,119 +73,163 @@ export default function WelcomeScreen() {
   };
 
   const handleNext = () => {
-    const nextSlide = currentSlide + 1;
-    if (nextSlide >= slides.length) {
+    console.log('Next button pressed. Current slide:', currentSlide);
+    const nextIndex = currentSlide + 1;
+    if (nextIndex >= slides.length) {
       handleGetStarted();
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    scrollViewRef.current?.scrollTo({ x: nextSlide * width, animated: true });
-    setCurrentSlide(nextSlide);
+    pagerRef.current?.setPage(nextIndex);
   };
 
-  const updateSlideFromScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const slideIndex = Math.round(event.nativeEvent.contentOffset.x / width);
-    setCurrentSlide(slideIndex);
+  const handleSelectSlide = (index: number) => {
+    if (index === currentSlide) return;
+    Haptics.selectionAsync();
+    pagerRef.current?.setPage(index);
   };
-
-  const footerBottom = insets.bottom + spacing.lg;
-  const contentPaddingBottom = FOOTER_HEIGHT + footerBottom;
-  const imageHeight = Math.min(height * 0.5, 400);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg.base }}>
-      <ScrollView
-        ref={scrollViewRef}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={updateSlideFromScroll}
-        onScrollEndDrag={updateSlideFromScroll}
-        style={{ flex: 1 }}
+    <View style={styles.container}>
+      <PagerView
+        ref={pagerRef}
+        style={StyleSheet.absoluteFill}
+        initialPage={0}
+        onPageSelected={(e) => {
+          console.log('Page selected:', e.nativeEvent.position);
+          setCurrentSlide(e.nativeEvent.position);
+        }}
+        overdrag={true}
       >
-        {slides.map((slide) => (
-          <View key={slide.id} style={{ width, minHeight: height, paddingTop: insets.top }}>
-            <View style={{ flex: 1, paddingBottom: contentPaddingBottom }}>
-              <View
-                style={{
-                  width,
-                  height: imageHeight,
-                  overflow: 'hidden',
-                  backgroundColor: colors.bg.card,
-                }}
-              >
-                <Image
-                  source={slide.image}
-                  style={{ width, height: imageHeight }}
-                  contentFit="cover"
-                  transition={200}
-                  cachePolicy="memory-disk"
-                />
-              </View>
-              <View style={{ paddingHorizontal: spacing.xl, paddingTop: spacing.xl }}>
-                <Text
-                  style={{
-                    ...typography.h1,
-                    color: colors.text.primary,
-                    fontSize: 28,
-                    lineHeight: 34,
-                  }}
-                >
-                  {t(slide.titleKey)}
-                </Text>
-                <Text
-                  style={{
-                    ...typography.body,
-                    color: colors.text.secondary,
-                    marginTop: spacing.sm,
-                  }}
-                >
-                  {t(slide.subtitleKey)}
-                </Text>
-              </View>
+        {slides.map((slide, index) => (
+          <View key={slide.id} style={styles.page}>
+            <Image
+              source={slide.image}
+              recyclingKey={slide.id}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              transition={200}
+              cachePolicy="memory-disk"
+              priority="high"
+            />
+
+            <LinearGradient
+              colors={[
+                'rgba(0, 0, 0, 0.45)',
+                'rgba(0, 0, 0, 0.1)',
+                'rgba(0, 0, 0, 0.35)',
+                'rgba(0, 0, 0, 0.85)',
+                '#000000',
+              ]}
+              locations={[0, 0.2, 0.5, 0.72, 0.95]}
+              style={StyleSheet.absoluteFill}
+            />
+
+            <View
+              style={[
+                styles.slideContent,
+                {
+                  paddingBottom: contentPaddingBottom,
+                  paddingTop: insets.top + spacing.xl,
+                },
+              ]}
+            >
+              <Text style={styles.title}>{t(slide.titleKey as any)}</Text>
+              <Text style={styles.subtitle}>{t(slide.subtitleKey as any)}</Text>
             </View>
           </View>
         ))}
-      </ScrollView>
-      {/* The very first screen has to offer the language, before anyone has
-          read a word of English. */}
+      </PagerView>
+
       <View
-        style={{
-          position: 'absolute',
-          top: insets.top + spacing.sm,
-          end: spacing.lg,
-          zIndex: 10,
-        }}
+        style={[
+          styles.footer,
+          {
+            paddingBottom: footerBottom,
+          },
+        ]}
+        pointerEvents="box-none"
       >
-        <LanguageSwitcher testID="welcome-language-switcher" />
-      </View>
-      <View
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          paddingHorizontal: spacing.xl,
-          paddingTop: spacing.lg,
-          paddingBottom: footerBottom,
-          backgroundColor: colors.bg.base,
-          borderTopWidth: 1,
-          borderTopColor: colors.border.subtle,
-        }}
-      >
-        <SlideIndicator current={currentSlide} />
-        <View style={{ marginTop: spacing.lg }}>
+        <SlideIndicator current={currentSlide} onSelect={handleSelectSlide} />
+
+        <View style={{ marginTop: spacing.xl }}>
           <PrimaryButton
-            label={currentSlide === slides.length - 1 ? t('auth.welcome.enter') : t('common.next')}
+            label={t(currentSlide === slides.length - 1 ? 'auth.welcome.enter' : 'common.continue')}
             onPress={handleNext}
-            icon={ForwardArrow}
+            icon={ArrowRight}
             testID="next-button"
           />
         </View>
-        <View style={{ marginTop: spacing.md }}>
-          <SecondaryButton label={t('auth.welcome.skipToSignIn')} onPress={handleGetStarted} testID="skip-button" />
+
+        <View style={{ marginTop: spacing.sm }}>
+          <SecondaryButton
+            label={t('auth.welcome.skipToSignIn')}
+            onPress={handleGetStarted}
+            testID="skip-button"
+          />
         </View>
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg.base,
+  },
+  page: {
+    flex: 1,
+    position: 'relative',
+  },
+  slideContent: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingHorizontal: spacing.xl,
+  },
+  title: {
+    ...typography.display,
+    fontFamily: fonts.extrabold,
+    fontWeight: '800',
+    fontSize: 32,
+    lineHeight: 38,
+    color: colors.text.primary,
+    letterSpacing: -1,
+  },
+  subtitle: {
+    ...typography.body,
+    color: colors.text.secondary,
+    marginTop: spacing.sm,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  footer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    backgroundColor: 'transparent',
+    zIndex: 10,
+    elevation: 10,
+  },
+  indicatorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  indicatorDot: {
+    height: 6,
+    borderRadius: radius.full,
+  },
+  indicatorActive: {
+    width: 24,
+    backgroundColor: colors.text.primary,
+  },
+  indicatorInactive: {
+    width: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+});
