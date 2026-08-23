@@ -74,7 +74,8 @@
           "resizeMode": "contain"
         }
       ],
-      "./plugins/with-ios-permission-strings"
+      "./plugins/with-ios-permission-strings",
+      "./plugins/withGradleMemory"
     ],
     "experiments": {
       "typedRoutes": true
