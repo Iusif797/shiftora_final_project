@@ -131,7 +131,7 @@
     "zod": "4.1.11"
   },
   "devDependencies": {
-    "@babel/core": "^7.29.7",
+    "@babel/core": "7.29.7",
     "@tanstack/eslint-plugin-query": "^5.101.2",
     "@testing-library/react-native": "^13.3.3",
     "@types/jest": "29.5.14",
