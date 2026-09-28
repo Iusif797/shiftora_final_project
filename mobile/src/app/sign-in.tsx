@@ -15,6 +15,7 @@ import { resolvePostAuthPath } from '@/lib/auth/post-auth';
 import { useInvalidateSession } from '@/lib/auth/use-session';
 import { useI18n, useT } from '@/i18n/I18nProvider';
 import { trailingText } from '@/i18n/rtl-styles';
+import { useKeyboard } from '@/hooks/use-keyboard';
 import { colors, radius, spacing, typography } from '@/theme';
 
 /** "Continue" arrow — a directional affordance, so it flips under RTL. */
@@ -26,6 +27,7 @@ export default function SignIn() {
   const t = useT();
   const { isRTL } = useI18n();
   const insets = useSafeAreaInsets();
+  const { isKeyboardVisible, keyboardHeight } = useKeyboard();
   const invalidateSession = useInvalidateSession();
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -103,10 +105,11 @@ export default function SignIn() {
           contentContainerStyle={{
             flexGrow: 1,
             paddingHorizontal: spacing.xxl,
-            paddingTop: insets.top + spacing.sm,
-            paddingBottom: insets.bottom + spacing.xxxl,
+                paddingTop: insets.top + (isKeyboardVisible ? spacing.xs : spacing.sm),
+                paddingBottom: insets.bottom + (isKeyboardVisible ? Math.max(keyboardHeight, 260) + spacing.xl : spacing.xxxl),
           }}
           keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
           testID="sign-in-screen"
         >
@@ -119,7 +122,7 @@ export default function SignIn() {
             <LanguageSwitcher testID="sign-in-language-switcher" />
           </View>
 
-          <View style={{ flex: 1, justifyContent: 'center', paddingTop: spacing.xxxl }}>
+          <View style={{ flex: 1, justifyContent: isKeyboardVisible ? 'flex-start' : 'center', paddingTop: isKeyboardVisible ? spacing.md : spacing.xxxl }}>
             <AccentBadge label={t('auth.signIn.badge')} color={colors.brand.gold} tint={colors.warning.muted} />
 
             <Text style={{ ...typography.h1, color: colors.text.primary, marginTop: spacing.xl }}>
@@ -130,6 +133,7 @@ export default function SignIn() {
             </Text>
 
             <GlassPanel>
+                  {!isKeyboardVisible && (
               <View
                 style={{
                   width: 72,
@@ -147,7 +151,8 @@ export default function SignIn() {
                 <LogIn color={colors.brand.secondary} size={28} strokeWidth={1.9} />
               </View>
 
-              <View style={{ gap: spacing.lg }}>
+                                )}
+<View style={{ gap: spacing.lg }}>
                 <FormField
                   label={t('auth.field.emailLabel')}
                   value={email}

@@ -3,7 +3,7 @@
     "name": "Shiftora",
     "slug": "shiftora",
     "scheme": "shiftora",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
@@ -32,11 +32,11 @@
           }
         ]
       },
-      "buildNumber": "13"
+      "buildNumber": "14"
     },
     "android": {
       "package": "pro.itenterprise.shiftora",
-      "versionCode": 22,
+      "versionCode": 24,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#000000"

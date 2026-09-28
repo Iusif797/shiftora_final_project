@@ -8,9 +8,11 @@ import { PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { FormField } from '@/components/form-field';
 import { authClient } from '@/lib/auth/auth-client';
 import { useT } from '@/i18n/I18nProvider';
+import { useKeyboard } from '@/hooks/use-keyboard';
 import { colors, spacing, typography } from '@/theme';
 
 export default function ResetPassword() {
+  const { isKeyboardVisible, keyboardHeight } = useKeyboard();
   const t = useT();
   const params = useLocalSearchParams<{ token?: string; error?: string }>();
   const token = typeof params.token === 'string' ? params.token : '';
@@ -44,9 +46,9 @@ export default function ResetPassword() {
   return (
     <AuthBackground>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ flexGrow: 1, padding: spacing.xxl, justifyContent: 'center' }} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={{ flexGrow: 1, padding: spacing.xxl, paddingBottom: isKeyboardVisible ? Math.max(keyboardHeight, 260) + spacing.xl : spacing.xxl, justifyContent: isKeyboardVisible ? 'flex-start' : 'center' }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
           <GlassPanel>
-            <KeyRound color={colors.brand.gold} size={30} />
+            {!isKeyboardVisible && <KeyRound color={colors.brand.gold} size={30} />}
             <Text style={{ ...typography.h1, color: colors.text.primary, marginTop: spacing.lg }}>{t('auth.resetPassword.title')}</Text>
             <Text style={{ ...typography.body, color: colors.text.secondary, marginTop: spacing.sm, marginBottom: spacing.xl }}>
               {t('auth.resetPassword.subtitle')}

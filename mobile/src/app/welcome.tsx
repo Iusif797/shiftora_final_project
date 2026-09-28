@@ -154,7 +154,7 @@ export default function WelcomeScreen() {
 
         <View style={{ marginTop: spacing.xl }}>
           <PrimaryButton
-            label={t(currentSlide === slides.length - 1 ? 'auth.welcome.enter' : 'common.continue')}
+            label={currentSlide === slides.length - 1 ? t('auth.welcome.enter') : t('common.next')}
             onPress={handleNext}
             icon={ArrowRight}
             testID="next-button"

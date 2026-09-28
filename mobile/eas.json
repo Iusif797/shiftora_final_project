@@ -38,6 +38,10 @@
         "ascApiKeyPath": "/home/devops/.config/asc-key.p8",
         "ascApiKeyId": "U4ZPDU72CX",
         "ascApiKeyIssuerId": "7b36a191-62bd-4525-a45d-38b877493538"
+      },
+      "android": {
+        "serviceAccountKeyPath": "/home/devops/.config/eas-submit-service-account.json",
+        "track": "internal"
       }
     }
   }
