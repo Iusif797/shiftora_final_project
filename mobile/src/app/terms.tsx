@@ -1,7 +1,7 @@
 import { LegalScreen } from '@/components/legal-screen';
 
 export default function Terms() {
-  return <LegalScreen title="Terms of Service" updated="July 14, 2026" sections={[
+  return <LegalScreen titleKey="legal.termsTitle" updated="July 14, 2026" sections={[
     { title: 'Using Shiftora', body: 'You must provide accurate account information, keep credentials secure, and use the service only for lawful restaurant operations. Workspace owners are responsible for inviting authorized users and assigning appropriate roles.' },
     { title: 'Workplace responsibilities', body: 'Shiftora provides operational tools and is not the employer of workspace users. Restaurants remain responsible for labor-law compliance, payroll decisions, employee notices, location and photo consent, taxes, and recordkeeping.' },
     { title: 'Pricing', body: 'Shiftora is currently provided at no charge and contains no in-app purchases or paid tiers. Every feature described in the app is available to every workspace. Point-of-sale records kept in the app do not replace required accounting or fiscal systems.' },

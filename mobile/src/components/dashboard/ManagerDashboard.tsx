@@ -6,11 +6,26 @@ import { AccentBadge, PrimaryButton, SecondaryButton } from '@/components/button
 import { EmptyState, ErrorState, HighlightCard, MetricCard, SurfaceCard } from '@/components/cards';
 import { StaggerItem } from '@/components/ui/motion';
 import { CardListSkeleton, HeroSkeleton, MetricGridSkeleton } from '@/components/ui/skeletons';
+import { useT } from '@/i18n/I18nProvider';
+import type { TranslationKey } from '@/i18n/resolver';
 import { api } from '@/lib/api/api';
 import { anomalyAppearance, colors, spacing, typography } from '@/theme';
-import type { AnalyticsOverview, Anomaly } from '@/types/app';
+import type { AnalyticsOverview, Anomaly, AnomalySeverity, AnomalyType } from '@/types/app';
+
+const anomalyTypeKey: Record<AnomalyType, TranslationKey> = {
+  LATE_ARRIVAL: 'ops.dashboard.manager.anomalyType.lateArrival',
+  MISSED_SHIFT: 'ops.dashboard.manager.anomalyType.missedShift',
+  EARLY_LEAVE: 'ops.dashboard.manager.anomalyType.earlyLeave',
+};
+
+const anomalySeverityKey: Record<AnomalySeverity, TranslationKey> = {
+  LOW: 'ops.dashboard.manager.severity.low',
+  MEDIUM: 'ops.dashboard.manager.severity.medium',
+  HIGH: 'ops.dashboard.manager.severity.high',
+};
 
 export function ManagerDashboard() {
+  const t = useT();
   const { data: analytics, isLoading: loadingAnalytics, isRefetching: refreshingAnalytics, isError: errorAnalytics, error: analyticsError, refetch: refetchAnalytics } = useQuery({
     queryKey: ['analytics-overview'],
     queryFn: () => api.get<AnalyticsOverview>('/api/analytics/overview'),
@@ -22,7 +37,7 @@ export function ManagerDashboard() {
 
   const isLoading = loadingAnalytics || loadingAnomalies;
   const isError = errorAnalytics || errorAnomalies;
-  const errorMessage = analyticsError instanceof Error ? analyticsError.message : anomaliesError instanceof Error ? anomaliesError.message : 'Could not load dashboard data';
+  const errorMessage = analyticsError instanceof Error ? analyticsError.message : anomaliesError instanceof Error ? anomaliesError.message : t('ops.dashboard.loadError');
   const onRefresh = () => {
     refetchAnalytics();
     refetchAnomalies();
@@ -51,31 +66,31 @@ export function ManagerDashboard() {
           tintColor={colors.brand.primary}
         />
       }
-      accessibilityLabel="Manager dashboard"
+      accessibilityLabel={t('ops.dashboard.manager.a11yLabel')}
     >
       <StaggerItem index={0}>
         <View style={{ marginBottom: spacing.lg, gap: spacing.md }}>
           <PrimaryButton
-            label="Create shift"
+            label={t('ops.dashboard.createShiftButton')}
             icon={Plus}
             onPress={() => router.push('/(app)/(tabs)/shifts')}
-            accessibilityLabel="Create new shift"
+            accessibilityLabel={t('ops.dashboard.createShiftA11y')}
           />
           <View style={{ flexDirection: 'row', gap: spacing.md }}>
             <View style={{ flex: 1 }}>
               <SecondaryButton
-                label="Check-in"
+                label={t('ops.dashboard.checkinButton')}
                 icon={LogIn}
                 onPress={() => router.push('/(app)/attendance')}
-                accessibilityLabel="Open check-in"
+                accessibilityLabel={t('ops.dashboard.checkinA11y')}
               />
             </View>
             <View style={{ flex: 1 }}>
               <SecondaryButton
-                label="Schedule"
+                label={t('ops.dashboard.manager.scheduleButton')}
                 icon={Calendar}
                 onPress={() => router.push('/(app)/(tabs)/shifts')}
-                accessibilityLabel="View schedule"
+                accessibilityLabel={t('ops.dashboard.manager.viewScheduleA11y')}
               />
             </View>
           </View>
@@ -92,21 +107,21 @@ export function ManagerDashboard() {
         <>
           <StaggerItem index={1}>
             <HighlightCard>
-              <AccentBadge label="Manager overview" color={colors.brand.primaryLight} tint="rgba(130,102,255,0.16)" />
+              <AccentBadge label={t('ops.dashboard.manager.overviewBadge')} color={colors.brand.primaryLight} tint="rgba(130,102,255,0.16)" />
               <Text style={{ ...typography.h2, color: colors.text.primary, marginTop: spacing.lg }}>
-                Today's operational pulse
+                {t('ops.dashboard.manager.pulseTitle')}
               </Text>
               <Text style={{ ...typography.body, color: colors.text.secondary, marginTop: spacing.sm }}>
-                See attendance, staffing, and alerts without switching screens.
+                {t('ops.dashboard.manager.pulseDescription')}
               </Text>
             </HighlightCard>
           </StaggerItem>
 
           <StaggerItem index={2} style={{ marginTop: spacing.lg }}>
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              <MetricCard label="Shifts" value={analytics?.totalShiftsThisWeek ?? 0} icon={Calendar} color={colors.brand.primary} />
+              <MetricCard label={t('ops.dashboard.manager.shiftsLabel')} value={analytics?.totalShiftsThisWeek ?? 0} icon={Calendar} color={colors.brand.primary} />
               <MetricCard
-                label="Attendance"
+                label={t('ops.metric.attendance')}
                 value={`${analytics?.attendanceRate ?? 0}%`}
                 icon={TrendingUp}
                 color={colors.success.base}
@@ -115,13 +130,13 @@ export function ManagerDashboard() {
           </StaggerItem>
           <StaggerItem index={3} style={{ marginTop: spacing.sm }}>
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              <MetricCard label="Active staff" value={analytics?.activeEmployeesCount ?? 0} icon={Users} color={colors.brand.gold} />
-              <MetricCard label="Alerts" value={analytics?.anomalyCount ?? 0} icon={AlertTriangle} color={colors.danger.base} onPress={() => router.push('/(app)/alerts')} testID="manager-alerts-card" />
+              <MetricCard label={t('ops.metric.activeStaff')} value={analytics?.activeEmployeesCount ?? 0} icon={Users} color={colors.brand.gold} />
+              <MetricCard label={t('ops.metric.alerts')} value={analytics?.anomalyCount ?? 0} icon={AlertTriangle} color={colors.danger.base} onPress={() => router.push('/(app)/alerts')} testID="manager-alerts-card" />
             </View>
           </StaggerItem>
 
           <StaggerItem index={4} style={{ marginTop: spacing.lg }}>
-            <SecondaryButton label="View all alerts" icon={AlertTriangle} onPress={() => router.push('/(app)/alerts')} testID="manager-view-alerts-button" />
+            <SecondaryButton label={t('ops.dashboard.manager.viewAllAlertsButton')} icon={AlertTriangle} onPress={() => router.push('/(app)/alerts')} testID="manager-view-alerts-button" />
           </StaggerItem>
           <View style={{ marginTop: spacing.lg, gap: spacing.md }}>
             {(anomalies?.length ?? 0) > 0 ? (
@@ -133,13 +148,13 @@ export function ManagerDashboard() {
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md }}>
                         <View style={{ flex: 1 }}>
                           <Text style={{ ...typography.h4, color: colors.text.primary }}>
-                            {anomaly.employee?.user?.name ?? 'Unknown employee'}
+                            {anomaly.employee?.user?.name ?? t('ops.dashboard.manager.unknownEmployee')}
                           </Text>
                           <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: 4 }}>
-                            {anomaly.type.replace(/_/g, ' ')}
+                            {t(anomalyTypeKey[anomaly.type])}
                           </Text>
                         </View>
-                        <AccentBadge label={anomaly.severity} color={appearance.color} tint={appearance.tint} />
+                        <AccentBadge label={t(anomalySeverityKey[anomaly.severity])} color={appearance.color} tint={appearance.tint} />
                       </View>
                     </SurfaceCard>
                   </StaggerItem>
@@ -148,8 +163,8 @@ export function ManagerDashboard() {
             ) : !loadingAnomalies ? (
               <EmptyState
                 icon={CheckCircle2}
-                title="No active alerts"
-                description="The current team flow looks healthy and under control."
+                title={t('ops.dashboard.manager.noAlertsTitle')}
+                description={t('ops.dashboard.manager.noAlertsDescription')}
                 color={colors.success.base}
               />
             ) : null}

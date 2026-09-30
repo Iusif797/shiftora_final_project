@@ -1,8 +1,29 @@
+import nodemailer from "nodemailer";
 import { Resend } from "resend";
 import { env } from "../env";
 import { logger } from "./logger";
 
+let _transporter: nodemailer.Transporter | null = null;
 let _resend: Resend | null = null;
+
+function getTransporter(): nodemailer.Transporter | null {
+  if (_transporter) return _transporter;
+  if (!env.SMTP_HOST) return null;
+
+  _transporter = nodemailer.createTransport({
+    host: env.SMTP_HOST,
+    port: parseInt(env.SMTP_PORT || "587", 10),
+    secure: env.SMTP_SECURE === "true",
+    auth: env.SMTP_USER && env.SMTP_PASS ? {
+      user: env.SMTP_USER,
+      pass: env.SMTP_PASS,
+    } : undefined,
+    tls: {
+      rejectUnauthorized: true,
+    },
+  });
+  return _transporter;
+}
 
 function getResend(): Resend | null {
   if (!env.RESEND_API_KEY) return null;
@@ -19,43 +40,64 @@ interface SendEmailParams {
 }
 
 /**
- * Универсальный отправитель писем через Resend.
+ * Odesílatel e-mailů přes naši vlastní poštu (SMTP relay mails.it-enterprise.cloud:587),
+ * s případným fallbackem na Resend, pokud je zadán RESEND_API_KEY.
  *
- * Поведение, когда RESEND_API_KEY не задан:
- *   • письмо НЕ отправляется, но и ошибки не бросается — в логах warn;
- *   • это позволяет деплоить бэк без Resend (например, для первого smoke-деплоя
- *     на Render), а в auth.ts email-верификация автоматически отключается,
- *     если ключа нет.
- *
- * Когда добавите RESEND_API_KEY в env — отправка включается без перезапуска кода
- * (Resend клиент создаётся лениво при первом вызове).
+ * Odesílatel: Shiftora <noreply@it-enterprise.pro>
  */
 export async function sendEmail({ to, subject, html, text }: SendEmailParams) {
+  const fromEmail = env.FROM_EMAIL || "Shiftora <noreply@it-enterprise.pro>";
+  const transporter = getTransporter();
+
+  if (transporter) {
+    try {
+      const info = await transporter.sendMail({
+        from: fromEmail,
+        to,
+        subject,
+        html,
+        text,
+      });
+      logger.info(
+        { to, subject, messageId: info.messageId },
+        "Email sent via our SMTP mail server (mails.it-enterprise.cloud)",
+      );
+      return { id: info.messageId };
+    } catch (err: any) {
+      logger.error(
+        { err: err?.message || err, to, subject },
+        "Failed to send email via SMTP, attempting fallback if available",
+      );
+      if (!env.RESEND_API_KEY) {
+        throw err;
+      }
+    }
+  }
+
   const resend = getResend();
-  if (!resend) {
-    logger.warn(
-      { to, subject, env: env.NODE_ENV },
-      "[email-stub] RESEND_API_KEY не задан — письмо не отправлено",
-    );
-    logger.debug({ html: html.slice(0, 200) }, "[email-stub] preview");
-    return { id: "stub" };
+  if (resend) {
+    const result = await resend.emails.send({
+      from: fromEmail,
+      to,
+      subject,
+      html,
+      text,
+    });
+
+    if (result.error) {
+      logger.error({ err: result.error, to }, "Failed to send email via Resend");
+      throw new Error(`Resend error: ${result.error.message}`);
+    }
+
+    logger.info({ to, subject, id: result.data?.id }, "Email sent via Resend");
+    return { id: result.data?.id ?? null };
   }
 
-  const result = await resend.emails.send({
-    from: env.FROM_EMAIL,
-    to,
-    subject,
-    html,
-    text,
-  });
-
-  if (result.error) {
-    logger.error({ err: result.error, to }, "Failed to send email via Resend");
-    throw new Error(`Resend error: ${result.error.message}`);
-  }
-
-  logger.info({ to, subject, id: result.data?.id }, "Email sent");
-  return { id: result.data?.id ?? null };
+  logger.warn(
+    { to, subject, env: env.NODE_ENV },
+    "[email-stub] Žádný odesílatel není konfigurován (ani SMTP, ani Resend) — e-mail nebyl odeslán",
+  );
+  return { id: "stub" };
 }
 
 function escapeHtml(value: string): string {

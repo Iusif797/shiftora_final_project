@@ -1,20 +1,27 @@
 import { Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
-import { router } from 'expo-router';
-import { UserCircle } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppBackground } from '@/components/app-shell';
 import { AccentBadge } from '@/components/buttons';
+import { HeaderActions } from '@/components/header-actions';
 import { enterFade } from '@/components/ui/motion';
-import { ScalePressable } from '@/components/ui/pressable';
 import { EmployeeDashboard, ManagerDashboard, OwnerDashboard } from '@/components/dashboard';
+import { useT } from '@/i18n/I18nProvider';
+import type { TranslationKey } from '@/i18n/resolver';
 import { useSession } from '@/lib/auth/use-session';
 import { getGreeting } from '@/lib/formatters';
 import { colors, roleAppearance, spacing, typography } from '@/theme';
 import type { AppUser } from '@/types/app';
 
+const ROLE_LABEL_KEYS: Record<'owner' | 'manager' | 'employee', TranslationKey> = {
+  owner: 'role.owner',
+  manager: 'role.manager',
+  employee: 'role.employee',
+};
+
 export default function Dashboard() {
   const { data: session } = useSession();
+  const t = useT();
   const user = session?.user as AppUser | undefined;
   const role = user?.role ?? 'employee';
   const roleStyle = roleAppearance[role];
@@ -31,7 +38,7 @@ export default function Dashboard() {
             borderBottomColor: colors.border.subtle,
           }}
           testID="dashboard-screen"
-          accessibilityLabel="Dashboard"
+          accessibilityLabel={t('tabs.dashboard')}
         >
           <Animated.View
             entering={enterFade()}
@@ -39,20 +46,20 @@ export default function Dashboard() {
           >
             <View style={{ flex: 1 }}>
               <Text style={{ ...typography.bodySmall, color: colors.text.tertiary }}>{getGreeting()}</Text>
+              {/* The person's name used to sit here. It is data, not an
+                  affordance, and it ended up in every screenshot and screen
+                  share — it now lives inside the account sheet instead. */}
               <Text style={{ ...typography.h1, color: colors.text.primary, marginTop: 4 }}>
-                {user?.name?.split(' ')[0] ?? 'Welcome'}
+                {t('tabs.dashboard')}
               </Text>
             </View>
             <View style={{ alignItems: 'flex-end', gap: spacing.sm }}>
-              <ScalePressable
-                onPress={() => router.push('/(app)/(tabs)/profile')}
-                hitSlop={10}
-                accessibilityLabel="Open profile"
-                testID="dashboard-profile-button"
-              >
-                <UserCircle color={colors.text.secondary} size={28} strokeWidth={1.8} />
-              </ScalePressable>
-              <AccentBadge label={role} color={roleStyle.color} tint={`${roleStyle.color}18`} />
+              <HeaderActions />
+              <AccentBadge
+                label={t(ROLE_LABEL_KEYS[role])}
+                color={roleStyle.color}
+                tint={`${roleStyle.color}18`}
+              />
             </View>
           </Animated.View>
         </View>

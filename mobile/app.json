@@ -3,18 +3,24 @@
     "name": "Shiftora",
     "slug": "shiftora",
     "scheme": "shiftora",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "pro.itenterprise.shiftora",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSCameraUsageDescription": "Shiftora использует камеру для QR-сканирования при отметке явки и для фото при check-in.",
-        "NSLocationWhenInUseUsageDescription": "Shiftora использует геолокацию для проверки близости к ресторану при отметке явки.",
-        "NSPhotoLibraryUsageDescription": "Shiftora использует доступ к фото для загрузки аватара в профиль."
+        "CFBundleDevelopmentRegion": "en",
+        "CFBundleLocalizations": [
+          "en"
+        ],
+        "NSCameraUsageDescription": "Shiftora uses the camera to scan the check-in QR code at your restaurant and to take an optional photo when you clock in.",
+        "NSLocationWhenInUseUsageDescription": "Shiftora uses your location while you clock in, to confirm that you are at the restaurant. Your location is not tracked in the background.",
+        "NSPhotoLibraryUsageDescription": "Shiftora uses your photo library so that you can pick a profile picture and attach an image to a check-in.",
+        "NSFaceIDUsageDescription": "Shiftora uses Face ID to protect the sign-in session stored securely on this device.",
+        "NSMotionUsageDescription": "Shiftora uses motion data from your device so that location updates while you clock in are accurate and use less battery."
       },
       "privacyManifests": {
         "NSPrivacyAccessedAPITypes": [
@@ -26,11 +32,11 @@
           }
         ]
       },
-      "buildNumber": "10"
+      "buildNumber": "14"
     },
     "android": {
       "package": "pro.itenterprise.shiftora",
-      "versionCode": 19,
+      "versionCode": 24,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#000000"
@@ -67,7 +73,9 @@
           "backgroundColor": "#000000",
           "resizeMode": "contain"
         }
-      ]
+      ],
+      "./plugins/with-ios-permission-strings",
+      "./plugins/withGradleMemory"
     ],
     "experiments": {
       "typedRoutes": true

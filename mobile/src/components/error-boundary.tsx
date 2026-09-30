@@ -4,6 +4,7 @@ import { Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { AlertTriangle } from 'lucide-react-native';
 import { PrimaryButton } from '@/components/buttons';
+import { translate } from '@/i18n/active';
 import { colors, spacing, typography } from '@/theme';
 
 interface Props {
@@ -58,7 +59,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <AlertTriangle color={colors.danger.base} size={36} strokeWidth={2} />
           </View>
           <Text style={{ ...typography.h3, color: colors.text.primary, textAlign: 'center' }}>
-            Something went wrong
+            {translate('common.error')}
           </Text>
           <Text
             style={{
@@ -71,7 +72,7 @@ export class ErrorBoundary extends Component<Props, State> {
           >
             {this.state.error.message}
           </Text>
-          <PrimaryButton label="Restart" onPress={this.handleRestart} testID="error-restart-button" />
+          <PrimaryButton label={translate('account.error.restart')} onPress={this.handleRestart} testID="error-restart-button" />
         </View>
       );
     }

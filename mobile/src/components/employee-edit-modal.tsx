@@ -4,6 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { X } from 'lucide-react-native';
 import { PrimaryButton } from '@/components/buttons';
+import { useT } from '@/i18n/I18nProvider';
 import { api } from '@/lib/api/api';
 import { showError, showSuccess } from '@/lib/toast';
 import { colors, radius, spacing, typography } from '@/theme';
@@ -17,6 +18,7 @@ interface EmployeeEditModalProps {
 }
 
 export function EmployeeEditModal({ employee, visible, onClose, onUpdated }: EmployeeEditModalProps) {
+  const t = useT();
   const [position, setPosition] = useState('');
   const [hourlyRate, setHourlyRate] = useState('');
   const [isActive, setIsActive] = useState(true);
@@ -37,11 +39,11 @@ export function EmployeeEditModal({ employee, visible, onClose, onUpdated }: Emp
       }),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showSuccess('Employee updated');
+      showSuccess(t('account.employee.toast.updated'));
       onUpdated();
       onClose();
     },
-    onError: (err) => showError('Update failed', err.message),
+    onError: (err) => showError(t('account.error.updateFailed'), err.message),
   });
 
   if (!employee) return null;
@@ -59,24 +61,24 @@ export function EmployeeEditModal({ employee, visible, onClose, onUpdated }: Emp
           <ScrollView showsVerticalScrollIndicator={false}>
             <View style={{ gap: spacing.md }}>
               <View>
-                <Text style={{ ...typography.label, color: colors.text.tertiary, marginBottom: spacing.sm }}>Position</Text>
+                <Text style={{ ...typography.label, color: colors.text.tertiary, marginBottom: spacing.sm }}>{t('account.employee.positionLabel')}</Text>
                 <View style={{ borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border.default, backgroundColor: colors.bg.surface }}>
-                  <TextInput value={position} onChangeText={setPosition} placeholder="Server, bartender..." placeholderTextColor={colors.text.disabled} style={{ minHeight: 52, paddingHorizontal: spacing.lg, color: colors.text.primary, fontSize: 16 }} testID="employee-edit-position" />
+                  <TextInput value={position} onChangeText={setPosition} placeholder={t('account.employee.positionPlaceholder')} placeholderTextColor={colors.text.disabled} style={{ minHeight: 52, paddingHorizontal: spacing.lg, color: colors.text.primary, fontSize: 16 }} testID="employee-edit-position" />
                 </View>
               </View>
               <View>
-                <Text style={{ ...typography.label, color: colors.text.tertiary, marginBottom: spacing.sm }}>Hourly rate</Text>
+                <Text style={{ ...typography.label, color: colors.text.tertiary, marginBottom: spacing.sm }}>{t('account.employee.hourlyRateLabel')}</Text>
                 <View style={{ borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border.default, backgroundColor: colors.bg.surface }}>
-                  <TextInput value={hourlyRate} onChangeText={setHourlyRate} placeholder="15.00" keyboardType="decimal-pad" placeholderTextColor={colors.text.disabled} style={{ minHeight: 52, paddingHorizontal: spacing.lg, color: colors.text.primary, fontSize: 16 }} testID="employee-edit-rate" />
+                  <TextInput value={hourlyRate} onChangeText={setHourlyRate} placeholder={t('account.employee.hourlyRatePlaceholder')} keyboardType="decimal-pad" placeholderTextColor={colors.text.disabled} style={{ minHeight: 52, paddingHorizontal: spacing.lg, color: colors.text.primary, fontSize: 16 }} testID="employee-edit-rate" />
                 </View>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.sm }}>
-                <Text style={{ ...typography.body, color: colors.text.primary }}>Active employee</Text>
+                <Text style={{ ...typography.body, color: colors.text.primary }}>{t('account.employee.activeLabel')}</Text>
                 <Switch value={isActive} onValueChange={setIsActive} testID="employee-edit-active" />
               </View>
             </View>
             <View style={{ marginTop: spacing.xl }}>
-              <PrimaryButton label="Save" onPress={() => mutation.mutate()} loading={mutation.isPending} testID="employee-save-button" />
+              <PrimaryButton label={t('common.save')} onPress={() => mutation.mutate()} loading={mutation.isPending} testID="employee-save-button" />
             </View>
           </ScrollView>
         </View>

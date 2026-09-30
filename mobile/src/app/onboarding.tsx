@@ -3,18 +3,24 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useMutation } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { ArrowRight, Building2, Check, ChefHat, Ticket, Users } from 'lucide-react-native';
+import { directionalIcon } from '@/components/ui/directional-icon';
 import { AuthBackground, GlassPanel } from '@/components/app-shell';
 import { AccentBadge, PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { FormField } from '@/components/form-field';
 import { api } from '@/lib/api/api';
 import { useInvalidateSession } from '@/lib/auth/use-session';
+import { useT } from '@/i18n/I18nProvider';
 import { colors, radius, roleAppearance, spacing, typography } from '@/theme';
 import type { UserRole } from '@/types/app';
+
+/** "Continue" arrow — a directional affordance, so it flips under RTL. */
+const ForwardArrow = directionalIcon(ArrowRight);
 
 type Step = 'path' | 'owner-setup' | 'employee-code' | 'employee-role';
 type UserPath = 'owner' | 'employee';
 
 export default function Onboarding() {
+  const t = useT();
   const [step, setStep] = useState<Step>('path');
   const [userPath, setUserPath] = useState<UserPath | null>(null);
   const [restaurantName, setRestaurantName] = useState('');
@@ -33,19 +39,19 @@ export default function Onboarding() {
 
   const createRestaurantMutation = useMutation({
     mutationFn: async () => {
-      if (!restaurantName.trim()) throw new Error('Enter your restaurant name');
+      if (!restaurantName.trim()) throw new Error(t('auth.error.restaurantNameRequired'));
       return api.post('/api/restaurants', { name: restaurantName.trim() });
     },
     onSuccess: async () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await invalidateSession();
     },
-    onError: (e) => setError(e instanceof Error ? e.message : 'Failed to create restaurant'),
+    onError: (e) => setError(e instanceof Error ? e.message : t('auth.error.restaurantCreateFailed')),
   });
 
   const verifyCodeMutation = useMutation({
     mutationFn: async () => {
-      if (!inviteCode.trim()) throw new Error('Enter the invitation code');
+      if (!inviteCode.trim()) throw new Error(t('auth.error.inviteCodeRequired'));
       return api.get<{ code: string; role: UserRole; restaurant: { id: string; name: string } }>(
         `/api/invitations/verify/${inviteCode.trim().toUpperCase()}`
       );
@@ -57,7 +63,7 @@ export default function Onboarding() {
       setStep('employee-role');
       setError(null);
     },
-    onError: (e) => setError(e instanceof Error ? e.message : 'Invalid or expired code'),
+    onError: (e) => setError(e instanceof Error ? e.message : t('auth.error.inviteCodeInvalid')),
   });
 
   const acceptInviteMutation = useMutation({
@@ -66,7 +72,7 @@ export default function Onboarding() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await invalidateSession();
     },
-    onError: (e) => setError(e instanceof Error ? e.message : 'Failed to join restaurant'),
+    onError: (e) => setError(e instanceof Error ? e.message : t('auth.error.joinRestaurantFailed')),
   });
 
   const handlePathSelect = (path: UserPath) => {
@@ -128,10 +134,10 @@ export default function Onboarding() {
 
         {step === 'path' ? (
           <View>
-            <AccentBadge label="Get started" color={colors.brand.gold} tint={colors.warning.muted} />
-            <Text style={{ ...typography.h1, color: colors.text.primary, marginTop: spacing.xl }}>How will you use Shiftora?</Text>
+            <AccentBadge label={t('auth.onboarding.getStartedBadge')} color={colors.brand.gold} tint={colors.warning.muted} />
+            <Text style={{ ...typography.h1, color: colors.text.primary, marginTop: spacing.xl }}>{t('auth.onboarding.pathTitle')}</Text>
             <Text style={{ ...typography.body, color: colors.text.secondary, marginTop: spacing.md, marginBottom: spacing.xxxl }}>
-              We'll set up the right workspace for your role.
+              {t('auth.onboarding.pathSubtitle')}
             </Text>
 
             <View style={{ gap: spacing.md }}>
@@ -143,10 +149,10 @@ export default function Onboarding() {
                         <Building2 color={roleAppearance.owner.color} size={24} strokeWidth={1.8} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ ...typography.h3, color: colors.text.primary }}>I own a restaurant</Text>
-                        <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: 4 }}>Create your workspace and invite your team</Text>
+                        <Text style={{ ...typography.h3, color: colors.text.primary }}>{t('auth.onboarding.ownerTitle')}</Text>
+                        <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: 4 }}>{t('auth.onboarding.ownerSubtitle')}</Text>
                       </View>
-                      <ArrowRight color={roleAppearance.owner.color} size={18} strokeWidth={2.2} />
+                      <ForwardArrow color={roleAppearance.owner.color} size={18} strokeWidth={2.2} />
                     </View>
                   </GlassPanel>
                 )}
@@ -160,10 +166,10 @@ export default function Onboarding() {
                         <Users color={roleAppearance.employee.color} size={24} strokeWidth={1.8} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ ...typography.h3, color: colors.text.primary }}>I'm joining a team</Text>
-                        <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: 4 }}>Use an invite code from your manager</Text>
+                        <Text style={{ ...typography.h3, color: colors.text.primary }}>{t('auth.onboarding.employeeTitle')}</Text>
+                        <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: 4 }}>{t('auth.onboarding.employeeSubtitle')}</Text>
                       </View>
-                      <ArrowRight color={roleAppearance.employee.color} size={18} strokeWidth={2.2} />
+                      <ForwardArrow color={roleAppearance.employee.color} size={18} strokeWidth={2.2} />
                     </View>
                   </GlassPanel>
                 )}
@@ -174,21 +180,21 @@ export default function Onboarding() {
 
         {step === 'owner-setup' ? (
           <View>
-            <SecondaryButton label="Back" onPress={() => { setStep('path'); setError(null); }} testID="back-button" />
+            <SecondaryButton label={t('common.back')} onPress={() => { setStep('path'); setError(null); }} testID="back-button" />
             <View style={{ marginTop: spacing.xl }}>
-              <AccentBadge label="Restaurant Owner" color={roleAppearance.owner.color} tint={`${roleAppearance.owner.color}18`} />
+              <AccentBadge label={t('auth.onboarding.ownerBadge')} color={roleAppearance.owner.color} tint={`${roleAppearance.owner.color}18`} />
             </View>
-            <Text style={{ ...typography.h1, color: colors.text.primary, marginTop: spacing.xl }}>Create your restaurant</Text>
+            <Text style={{ ...typography.h1, color: colors.text.primary, marginTop: spacing.xl }}>{t('auth.onboarding.ownerSetupTitle')}</Text>
             <Text style={{ ...typography.body, color: colors.text.secondary, marginTop: spacing.md, marginBottom: spacing.xxxl }}>
-              Set up your workspace and start managing your team.
+              {t('auth.onboarding.ownerSetupSubtitle')}
             </Text>
 
             <GlassPanel>
               <FormField
-                label="Restaurant name"
+                label={t('auth.field.restaurantNameLabel')}
                 value={restaurantName}
                 onChangeText={setRestaurantName}
-                placeholder="The Grand Kitchen"
+                placeholder={t('auth.field.restaurantNamePlaceholder')}
                 focused={focusedField === 'name'}
                 hasError={error != null}
                 onFocus={() => setFocusedField('name')}
@@ -203,10 +209,10 @@ export default function Onboarding() {
               ) : null}
               <View style={{ marginTop: spacing.xl }}>
                 <PrimaryButton
-                  label="Create restaurant"
+                  label={t('auth.onboarding.createRestaurant')}
                   onPress={() => { setError(null); createRestaurantMutation.mutate(); }}
                   loading={createRestaurantMutation.isPending}
-                  icon={ArrowRight}
+                  icon={ForwardArrow}
                   testID="submit-button"
                 />
               </View>
@@ -216,13 +222,13 @@ export default function Onboarding() {
 
         {step === 'employee-code' ? (
           <View>
-            <SecondaryButton label="Back" onPress={() => { setStep('path'); setError(null); }} testID="back-button" />
+            <SecondaryButton label={t('common.back')} onPress={() => { setStep('path'); setError(null); }} testID="back-button" />
             <View style={{ marginTop: spacing.xl }}>
-              <AccentBadge label="Join team" color={roleAppearance.employee.color} tint={`${roleAppearance.employee.color}18`} />
+              <AccentBadge label={t('auth.onboarding.joinTeamBadge')} color={roleAppearance.employee.color} tint={`${roleAppearance.employee.color}18`} />
             </View>
-            <Text style={{ ...typography.h1, color: colors.text.primary, marginTop: spacing.xl }}>Enter invite code</Text>
+            <Text style={{ ...typography.h1, color: colors.text.primary, marginTop: spacing.xl }}>{t('auth.onboarding.inviteCodeTitle')}</Text>
             <Text style={{ ...typography.body, color: colors.text.secondary, marginTop: spacing.md, marginBottom: spacing.xxxl }}>
-              Your restaurant owner or manager shared a code with you.
+              {t('auth.onboarding.inviteCodeSubtitle')}
             </Text>
 
             <GlassPanel>
@@ -232,10 +238,10 @@ export default function Onboarding() {
                 </View>
               </View>
               <FormField
-                label="Invitation code"
+                label={t('auth.field.inviteCodeLabel')}
                 value={inviteCode}
                 onChangeText={(v) => setInviteCode(v.toUpperCase())}
-                placeholder="ABCD1234"
+                placeholder={t('auth.field.inviteCodePlaceholder')}
                 focused={focusedField === 'code'}
                 hasError={error != null}
                 onFocus={() => setFocusedField('code')}
@@ -250,11 +256,11 @@ export default function Onboarding() {
               ) : null}
               <View style={{ marginTop: spacing.xl }}>
                 <PrimaryButton
-                  label="Verify code"
+                  label={t('auth.onboarding.verifyCode')}
                   onPress={() => { setError(null); verifyCodeMutation.mutate(); }}
                   loading={verifyCodeMutation.isPending}
                   disabled={!inviteCode.trim()}
-                  icon={ArrowRight}
+                  icon={ForwardArrow}
                   testID="verify-code-button"
                 />
               </View>
@@ -264,13 +270,21 @@ export default function Onboarding() {
 
         {step === 'employee-role' && verifiedInvite ? (
           <View>
-            <SecondaryButton label="Back" onPress={() => { setStep('employee-code'); setError(null); }} testID="back-button" />
+            <SecondaryButton label={t('common.back')} onPress={() => { setStep('employee-code'); setError(null); }} testID="back-button" />
             <View style={{ marginTop: spacing.xl }}>
-              <AccentBadge label="Confirm" color={colors.success.base} tint={colors.success.muted} />
+              <AccentBadge label={t('auth.onboarding.confirmBadge')} color={colors.success.base} tint={colors.success.muted} />
             </View>
-            <Text style={{ ...typography.h1, color: colors.text.primary, marginTop: spacing.xl }}>Join {verifiedInvite.restaurant.name}</Text>
+            <Text style={{ ...typography.h1, color: colors.text.primary, marginTop: spacing.xl }}>
+              {t('auth.onboarding.joinTitle', { restaurantName: verifiedInvite.restaurant.name })}
+            </Text>
             <Text style={{ ...typography.body, color: colors.text.secondary, marginTop: spacing.md, marginBottom: spacing.xxxl }}>
-              You've been invited as {verifiedInvite.role === 'manager' ? 'a shift manager' : 'a team member'}.
+              {t('auth.onboarding.invitedAs', {
+                roleText: t(
+                  verifiedInvite.role === 'manager'
+                    ? 'auth.onboarding.invitedAsManager'
+                    : 'auth.onboarding.invitedAsMember',
+                ),
+              })}
             </Text>
 
             <GlassPanel>
@@ -285,7 +299,13 @@ export default function Onboarding() {
                 <View style={{ flex: 1 }}>
                   <Text style={{ ...typography.h3, color: colors.text.primary }}>{verifiedInvite.restaurant.name}</Text>
                   <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: 4 }}>
-                    Role: {verifiedInvite.role === 'manager' ? 'Shift Manager' : 'Team Member'}
+                    {t('auth.onboarding.roleLine', {
+                      role: t(
+                        verifiedInvite.role === 'manager'
+                          ? 'auth.onboarding.roleLabelManager'
+                          : 'auth.onboarding.roleLabelMember',
+                      ),
+                    })}
                   </Text>
                 </View>
               </View>
@@ -295,7 +315,7 @@ export default function Onboarding() {
                 </View>
               ) : null}
               <PrimaryButton
-                label="Join restaurant"
+                label={t('auth.onboarding.joinRestaurant')}
                 onPress={() => { setError(null); acceptInviteMutation.mutate(); }}
                 loading={acceptInviteMutation.isPending}
                 icon={Check}

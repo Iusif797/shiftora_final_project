@@ -6,6 +6,7 @@ import {
   type OfflineCheckoutItem,
 } from '@/lib/offline-checkin-queue';
 import { uploadFile } from '@/lib/upload';
+import { translate } from '@/i18n/active';
 import type { Checkin } from '@/types/app';
 
 export type FlushResult = {
@@ -105,7 +106,7 @@ export async function flushOfflineCheckinQueue(): Promise<FlushResult> {
         break;
       }
 
-      const message = error instanceof Error ? error.message : 'Sync failed';
+      const message = error instanceof Error ? error.message : translate('schedule.checkin.syncFailedFallback');
       if (message.includes('Pending check-in is not synced yet')) {
         break;
       }

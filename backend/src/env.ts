@@ -17,14 +17,15 @@ const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PRO_PRICE_ID: z.string().optional(),
   STRIPE_BUSINESS_PRICE_ID: z.string().optional(),
+  SMTP_HOST: z.string().optional().default("mails.it-enterprise.cloud"),
+  SMTP_PORT: z.string().optional().default("587"),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_SECURE: z.enum(["true", "false"]).optional().default("false"),
   RESEND_API_KEY: z.string().optional(),
-  FROM_EMAIL: z.string().optional().default("Shiftora <noreply@example.com>"),
+  FROM_EMAIL: z.string().optional().default("Shiftora <noreply@it-enterprise.pro>"),
   ENABLE_API_DOCS: z.enum(["true", "false"]).optional(),
   TRUST_PROXY_HEADERS: z.enum(["true", "false"]).optional().default("false"),
-  // Явный флаг включения email-верификации. По умолчанию off, чтобы существующие
-  // аккаунты не оказались заблокированы при первом деплое. Включайте, когда
-  // готовы рассылать письма (нужен RESEND_API_KEY) и точно знаете, что у всех
-  // юзеров emailVerified=true (либо готовы их вручную пометить).
   EMAIL_VERIFICATION_REQUIRED: z
     .enum(["true", "false"])
     .optional()
@@ -35,8 +36,6 @@ function validateEnv() {
   try {
     const parsed = envSchema.parse(process.env);
 
-    // Production safety checks: переменные опциональны на уровне схемы,
-    // но в production некоторые из них критичны.
     if (parsed.NODE_ENV === "production") {
       const errors: string[] = [];
       const warnings: string[] = [];
@@ -68,8 +67,8 @@ function validateEnv() {
       if (!parsed.SENTRY_DSN) {
         warnings.push("SENTRY_DSN не задан — ошибки бэкенда не будут трекаться.");
       }
-      if (!parsed.RESEND_API_KEY) {
-        errors.push("RESEND_API_KEY is required for verification and password reset email.");
+      if (!parsed.SMTP_HOST && !parsed.RESEND_API_KEY) {
+        errors.push("SMTP_HOST or RESEND_API_KEY is required for verification and password reset email.");
       }
       if (parsed.FROM_EMAIL.includes("example.com")) {
         errors.push("FROM_EMAIL must use a verified production sending domain.");
@@ -80,9 +79,9 @@ function validateEnv() {
       if (parsed.BETTER_AUTH_SECRET.length < 32) {
         errors.push("BETTER_AUTH_SECRET must be at least 32 characters.");
       }
-      if (parsed.EMAIL_VERIFICATION_REQUIRED === "true" && !parsed.RESEND_API_KEY) {
+      if (parsed.EMAIL_VERIFICATION_REQUIRED === "true" && !parsed.SMTP_HOST && !parsed.RESEND_API_KEY) {
         errors.push(
-          "RESEND_API_KEY is required when EMAIL_VERIFICATION_REQUIRED=true.",
+          "SMTP_HOST or RESEND_API_KEY is required when EMAIL_VERIFICATION_REQUIRED=true.",
         );
       }
       if (errors.length > 0) {

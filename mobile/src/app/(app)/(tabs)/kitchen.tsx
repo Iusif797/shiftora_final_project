@@ -8,14 +8,33 @@ import { AccentBadge, PrimaryButton, SecondaryButton } from '@/components/button
 import { EmptyState, ErrorState, SurfaceCard } from '@/components/cards';
 import { StaggerItem } from '@/components/ui/motion';
 import { CardListSkeleton } from '@/components/ui/skeletons';
+import { useT } from '@/i18n/I18nProvider';
+import type { TranslationKey } from '@/i18n/resolver';
 import { api } from '@/lib/api/api';
 import { showError, showSuccess } from '@/lib/toast';
 import { formatTime } from '@/lib/formatters';
 import { colors, spacing, typography } from '@/theme';
-import type { OrderItemStatus, PosOrder, PosOrderItem } from '@/types/pos';
+import type { OrderItemStatus, OrderStatus, PosOrder, PosOrderItem } from '@/types/pos';
 
 const KITCHEN_STATUSES = new Set(['OPEN', 'PREPARING', 'READY']);
 const ACTIVE_ITEM_STATUSES = new Set(['PENDING', 'PREPARING', 'READY']);
+
+const itemStatusKey: Record<OrderItemStatus, TranslationKey> = {
+  PENDING: 'ops.kitchen.itemStatus.pending',
+  PREPARING: 'ops.kitchen.itemStatus.preparing',
+  READY: 'ops.kitchen.itemStatus.ready',
+  SERVED: 'ops.kitchen.itemStatus.served',
+  CANCELLED: 'ops.kitchen.itemStatus.cancelled',
+};
+
+const orderStatusKey: Record<OrderStatus, TranslationKey> = {
+  OPEN: 'ops.kitchen.orderStatus.open',
+  PREPARING: 'ops.kitchen.orderStatus.preparing',
+  READY: 'ops.kitchen.orderStatus.ready',
+  SERVED: 'ops.kitchen.orderStatus.served',
+  PAID: 'ops.kitchen.orderStatus.paid',
+  CANCELLED: 'ops.kitchen.orderStatus.cancelled',
+};
 
 function itemTone(status: OrderItemStatus) {
   if (status === 'READY') return colors.success.base;
@@ -34,6 +53,7 @@ function KitchenItemRow({
   onUpdate: (input: { orderId: string; itemId: string; status: OrderItemStatus }) => void;
   busy: boolean;
 }) {
+  const t = useT();
   return (
     <View
       style={{
@@ -49,7 +69,7 @@ function KitchenItemRow({
         <Text style={{ ...typography.h4, color: colors.text.primary, flex: 1 }}>
           {item.quantity}× {item.nameSnapshot}
         </Text>
-        <Text style={{ ...typography.caption, color: itemTone(item.status) }}>{item.status}</Text>
+        <Text style={{ ...typography.caption, color: itemTone(item.status) }}>{t(itemStatusKey[item.status])}</Text>
       </View>
       {item.notes ? (
         <Text style={{ ...typography.bodySmall, color: colors.text.secondary }}>{item.notes}</Text>
@@ -58,7 +78,7 @@ function KitchenItemRow({
         {item.status === 'PENDING' ? (
           <View style={{ flex: 1 }}>
             <PrimaryButton
-              label="Preparing"
+              label={t('ops.kitchen.markPreparing')}
               onPress={() => onUpdate({ orderId, itemId: item.id, status: 'PREPARING' })}
               disabled={busy}
               testID={`kitchen-prepare-${item.id}`}
@@ -68,7 +88,7 @@ function KitchenItemRow({
         {item.status === 'PENDING' || item.status === 'PREPARING' ? (
           <View style={{ flex: 1 }}>
             <SecondaryButton
-              label="Ready"
+              label={t('ops.kitchen.markReady')}
               onPress={() => onUpdate({ orderId, itemId: item.id, status: 'READY' })}
               disabled={busy}
               testID={`kitchen-ready-${item.id}`}
@@ -81,6 +101,7 @@ function KitchenItemRow({
 }
 
 export default function KitchenScreen() {
+  const t = useT();
   const queryClient = useQueryClient();
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['kitchen-orders'],
@@ -100,13 +121,13 @@ export default function KitchenScreen() {
     }) => api.patch<PosOrder>(`/api/orders/${orderId}/items/${itemId}`, { status }),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showSuccess('Updated', 'Kitchen ticket updated');
+      showSuccess(t('ops.kitchen.updateSuccessTitle'), t('ops.kitchen.updateSuccessBody'));
       void queryClient.invalidateQueries({ queryKey: ['kitchen-orders'] });
       void queryClient.invalidateQueries({ queryKey: ['tables'] });
     },
     onError: (err: Error) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      showError('Update failed', err.message);
+      showError(t('ops.kitchen.updateFailedTitle'), err.message);
     },
   });
 
@@ -127,8 +148,8 @@ export default function KitchenScreen() {
 
   return (
     <ScreenScroll
-      title="Kitchen"
-      subtitle="Live tickets from the floor"
+      title={t('ops.kitchen.title')}
+      subtitle={t('ops.kitchen.subtitle')}
       testID="kitchen-screen"
       refreshControl={
         <RefreshControl
@@ -146,7 +167,7 @@ export default function KitchenScreen() {
 
       {isError && !data ? (
         <ErrorState
-          message={error instanceof Error ? error.message : 'Could not load kitchen tickets'}
+          message={error instanceof Error ? error.message : t('ops.kitchen.loadError')}
           onRetry={() => refetch()}
           testID="kitchen-error"
         />
@@ -155,8 +176,8 @@ export default function KitchenScreen() {
       {!isLoading && !isError && orders.length === 0 ? (
         <EmptyState
           icon={ChefHat}
-          title="Kitchen is clear"
-          description="New waiter tickets will appear here as soon as orders are placed."
+          title={t('ops.kitchen.emptyTitle')}
+          description={t('ops.kitchen.emptyDescription')}
           color={colors.brand.gold}
           testID="kitchen-empty"
         />
@@ -168,7 +189,7 @@ export default function KitchenScreen() {
             <SurfaceCard>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <AccentBadge
-                  label={`Table ${order.table?.number ?? '—'}`}
+                  label={t('ops.kitchen.tableBadge', { number: order.table?.number ?? '—' })}
                   color={colors.brand.gold}
                   tint={colors.warning.muted}
                 />
@@ -177,8 +198,13 @@ export default function KitchenScreen() {
                 </Text>
               </View>
               <Text style={{ ...typography.bodySmall, color: colors.text.secondary, marginTop: spacing.sm }}>
-                Order {order.status.toLowerCase()} · {order.items.length} item
-                {order.items.length === 1 ? '' : 's'}
+                {t('ops.kitchen.orderSummaryLine', {
+                  status: t(orderStatusKey[order.status]),
+                  items:
+                    order.items.length === 1
+                      ? t('ops.kitchen.itemCountOne', { count: order.items.length })
+                      : t('ops.kitchen.itemCount', { count: order.items.length }),
+                })}
               </Text>
               {order.items.map((item) => (
                 <KitchenItemRow

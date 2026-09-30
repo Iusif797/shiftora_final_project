@@ -10,6 +10,7 @@ import { EmptyState, ErrorState, SurfaceCard } from '@/components/cards';
 import { StaggerItem } from '@/components/ui/motion';
 import { ScalePressable } from '@/components/ui/pressable';
 import { CardListSkeleton } from '@/components/ui/skeletons';
+import { useT } from '@/i18n/I18nProvider';
 import { api } from '@/lib/api/api';
 import { useSession } from '@/lib/auth/use-session';
 import { getColorForId, getInitials } from '@/lib/formatters';
@@ -19,6 +20,7 @@ import type { AppUser, Employee, PaginatedResponse } from '@/types/app';
 const PAGE_SIZE = 100;
 
 const EmployeeCard = memo(function EmployeeCard({ employee, onPress }: { employee: Employee; onPress?: () => void }) {
+  const t = useT();
   const accent = getColorForId(employee.id);
   return (
     <SurfaceCard>
@@ -42,7 +44,7 @@ const EmployeeCard = memo(function EmployeeCard({ employee, onPress }: { employe
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm }}>
             <Text style={{ ...typography.h4, color: colors.text.primary, flex: 1 }}>{employee.user?.name}</Text>
             <AccentBadge
-              label={employee.isActive ? 'active' : 'inactive'}
+              label={employee.isActive ? t('ops.team.statusActive') : t('ops.team.statusInactive')}
               color={employee.isActive ? colors.success.base : colors.danger.base}
               tint={employee.isActive ? colors.success.muted : colors.danger.muted}
             />
@@ -62,6 +64,7 @@ const EmployeeCard = memo(function EmployeeCard({ employee, onPress }: { employe
 });
 
 function EmployeesScreen() {
+  const t = useT();
   const { data: session } = useSession();
   const role = (session?.user as AppUser | undefined)?.role ?? 'employee';
   const canManage = role === 'manager' || role === 'owner';
@@ -96,7 +99,7 @@ function EmployeesScreen() {
     <View style={{ marginBottom: spacing.md, gap: spacing.md }}>
       {canManage ? (
         <>
-          <PrimaryButton label="Invite team" icon={UserPlus} onPress={() => router.push('/invitations' as Href)} testID="employees-invite-button" />
+          <PrimaryButton label={t('ops.team.inviteButton')} icon={UserPlus} onPress={() => router.push('/invitations' as Href)} testID="employees-invite-button" />
         </>
       ) : null}
       {isLoading ? (
@@ -111,10 +114,10 @@ function EmployeesScreen() {
   if (isError) {
     return (
       <AppBackground>
-        <ScreenHeader title="Team" subtitle="0 members" />
+        <ScreenHeader title={t('ops.team.title')} subtitle={t('ops.team.subtitleZero')} />
         <View style={{ paddingHorizontal: 20, paddingTop: spacing.xl }}>
           <ErrorState
-            message={error instanceof Error ? error.message : 'Could not load the team'}
+            message={error instanceof Error ? error.message : t('ops.team.loadError')}
             onRetry={handleRetry}
             testID="employees-error"
           />
@@ -126,13 +129,13 @@ function EmployeesScreen() {
   if (!isLoading && employees.length === 0) {
     return (
       <AppBackground>
-        <ScreenHeader title="Team" subtitle="0 members" />
+        <ScreenHeader title={t('ops.team.title')} subtitle={t('ops.team.subtitleZero')} />
         <View style={{ paddingHorizontal: 20, paddingTop: spacing.xl, gap: spacing.md }}>
-          {canManage ? <PrimaryButton label="Invite team" icon={UserPlus} onPress={() => router.push('/invitations' as Href)} testID="employees-invite-button" /> : null}
+          {canManage ? <PrimaryButton label={t('ops.team.inviteButton')} icon={UserPlus} onPress={() => router.push('/invitations' as Href)} testID="employees-invite-button" /> : null}
           <EmptyState
             icon={Users}
-            title="No team members yet"
-            description="Generate an invite code and share it with staff during onboarding."
+            title={t('ops.team.emptyTitle')}
+            description={t('ops.team.emptyDescription')}
             color={colors.brand.primary}
             testID="employees-empty"
           />
@@ -145,8 +148,12 @@ function EmployeesScreen() {
   return (
     <AppBackground>
       <ScreenHeader
-        title="Team"
-        subtitle={`${employees.length} members${activeCount > 0 ? ` · ${activeCount} active` : ''}`}
+        title={t('ops.team.title')}
+        subtitle={`${
+          employees.length === 1
+            ? t('ops.team.memberCountOne', { count: employees.length })
+            : t('ops.team.memberCount', { count: employees.length })
+        }${activeCount > 0 ? ` · ${t('ops.team.activeSuffix', { count: activeCount })}` : ''}`}
       />
       <FlatList
         data={employees}

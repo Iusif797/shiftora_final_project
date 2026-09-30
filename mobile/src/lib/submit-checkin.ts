@@ -9,6 +9,7 @@ import {
 } from '@/lib/offline-checkin-queue';
 import { flushOfflineCheckinQueue } from '@/lib/offline-checkin-sync';
 import { uploadFile } from '@/lib/upload';
+import { translate } from '@/i18n/active';
 import type { Checkin } from '@/types/app';
 
 export type CheckinSubmitResult =
@@ -164,7 +165,7 @@ export async function submitCheckout(input: {
   }
 
   if (!checkinId) {
-    throw new Error('checkinId required');
+    throw new Error(translate('schedule.checkin.checkinIdRequiredError'));
   }
 
   try {

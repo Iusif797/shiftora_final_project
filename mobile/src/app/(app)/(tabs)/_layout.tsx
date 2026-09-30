@@ -10,6 +10,8 @@ import Animated, {
   withSequence,
 } from 'react-native-reanimated';
 import { Home, Calendar, Users, BarChart3, UserCircle, LayoutGrid, ChefHat } from 'lucide-react-native';
+import { useT } from '@/i18n/I18nProvider';
+import type { TranslationKey } from '@/i18n/resolver';
 import { useSession } from '@/lib/auth/use-session';
 import { colors, radius } from '@/theme';
 import type { AppUser } from '@/types/app';
@@ -18,14 +20,14 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-const TAB_ITEMS: { name: string; icon: LucideIcon; label: string; roles?: string[] }[] = [
-  { name: 'index', icon: Home, label: 'Home' },
-  { name: 'shifts', icon: Calendar, label: 'Schedule' },
-  { name: 'floor', icon: LayoutGrid, label: 'Floor' },
-  { name: 'kitchen', icon: ChefHat, label: 'Kitchen' },
-  { name: 'employees', icon: Users, label: 'Team', roles: ['manager', 'owner'] },
-  { name: 'analytics', icon: BarChart3, label: 'Analytics', roles: ['owner'] },
-  { name: 'profile', icon: UserCircle, label: 'Profile', roles: ['manager', 'employee'] },
+const TAB_ITEMS: { name: string; icon: LucideIcon; labelKey: TranslationKey; roles?: string[] }[] = [
+  { name: 'index', icon: Home, labelKey: 'tabs.home' },
+  { name: 'shifts', icon: Calendar, labelKey: 'tabs.schedule' },
+  { name: 'floor', icon: LayoutGrid, labelKey: 'tabs.floor' },
+  { name: 'kitchen', icon: ChefHat, labelKey: 'tabs.kitchen' },
+  { name: 'employees', icon: Users, labelKey: 'tabs.team', roles: ['manager', 'owner'] },
+  { name: 'analytics', icon: BarChart3, labelKey: 'tabs.analytics', roles: ['owner'] },
+  { name: 'profile', icon: UserCircle, labelKey: 'tabs.profile', roles: ['manager', 'employee'] },
 ];
 
 function TabButton({
@@ -100,6 +102,7 @@ function TabButton({
 
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const { data: session } = useSession();
+  const t = useT();
   const role = (session?.user as AppUser | undefined)?.role ?? 'employee';
 
   const visibleTabs = TAB_ITEMS.filter(
@@ -120,7 +123,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               <TabButton
                 key={route.key}
                 icon={tab.icon}
-                label={tab.label}
+                label={t(tab.labelKey)}
                 focused={focused}
                 onPress={() => {
                   const event = navigation.emit({
@@ -143,6 +146,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
 export default function TabsLayout() {
   const { data: session } = useSession();
+  const t = useT();
   const role = (session?.user as AppUser | undefined)?.role ?? 'employee';
 
   return (
@@ -152,25 +156,25 @@ export default function TabsLayout() {
         headerShown: false,
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Dashboard' }} />
-      <Tabs.Screen name="shifts" options={{ title: 'Schedule' }} />
-      <Tabs.Screen name="floor" options={{ title: 'Floor' }} />
-      <Tabs.Screen name="kitchen" options={{ title: 'Kitchen' }} />
+      <Tabs.Screen name="index" options={{ title: t('tabs.dashboard') }} />
+      <Tabs.Screen name="shifts" options={{ title: t('tabs.schedule') }} />
+      <Tabs.Screen name="floor" options={{ title: t('tabs.floor') }} />
+      <Tabs.Screen name="kitchen" options={{ title: t('tabs.kitchen') }} />
       <Tabs.Screen
         name="employees"
         options={{
-          title: 'Team',
+          title: t('tabs.team'),
           href: role === 'manager' || role === 'owner' ? undefined : null,
         }}
       />
       <Tabs.Screen
         name="analytics"
         options={{
-          title: 'Analytics',
+          title: t('tabs.analytics'),
           href: role === 'owner' ? undefined : null,
         }}
       />
-      <Tabs.Screen name="profile" options={{ title: 'Profile', href: role === 'owner' ? null : undefined }} />
+      <Tabs.Screen name="profile" options={{ title: t('tabs.profile'), href: role === 'owner' ? null : undefined }} />
     </Tabs>
   );
 }

@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { Trash2 } from 'lucide-react-native';
+import { useT } from '@/i18n/I18nProvider';
 import { api } from '@/lib/api/api';
 import { authClient } from '@/lib/auth/auth-client';
 import { useInvalidateSession, useSession } from '@/lib/auth/use-session';
@@ -18,6 +19,7 @@ import type { AppUser } from '@/types/app';
  * вместе с данными (DELETE /api/users/me).
  */
 export function DeleteAccountSection({ testID = 'delete-account-button' }: { testID?: string }) {
+  const t = useT();
   const { data: session } = useSession();
   const invalidateSession = useInvalidateSession();
   const queryClient = useQueryClient();
@@ -31,30 +33,30 @@ export function DeleteAccountSection({ testID = 'delete-account-button' }: { tes
       queryClient.clear();
       await invalidateSession();
       router.replace('/welcome');
-      showSuccess('Account deleted', 'Your account and its data have been permanently removed.');
+      showSuccess(t('account.delete.toast.successTitle'), t('account.delete.toast.successBody'));
     },
-    onError: (error: Error) => showError('Could not delete account', error.message),
+    onError: (error: Error) => showError(t('account.delete.toast.errorTitle'), error.message),
   });
 
   const confirm = () => {
     const details =
       user?.role === 'owner'
-        ? 'Your account will be deleted permanently. Because you own this restaurant, the restaurant and all of its data — shifts, check-ins, menu, tables, orders and invitations — are deleted with it. Employees keep their own accounts but lose access to this workspace.'
-        : 'Your account will be deleted permanently, together with your check-ins, shift assignments and profile data. This cannot be undone.';
+        ? t('account.delete.confirmBodyOwner')
+        : t('account.delete.confirmBodyEmployee');
 
-    Alert.alert('Delete account?', details, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('account.delete.confirmTitle'), details, [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: () =>
           Alert.alert(
-            'Delete account permanently?',
-            'This is the final confirmation. The account cannot be restored afterwards.',
+            t('account.delete.finalConfirmTitle'),
+            t('account.delete.finalConfirmBody'),
             [
-              { text: 'Cancel', style: 'cancel' },
+              { text: t('common.cancel'), style: 'cancel' },
               {
-                text: 'Delete permanently',
+                text: t('account.delete.deletePermanently'),
                 style: 'destructive',
                 onPress: () => deleteAccount.mutate(),
               },
@@ -71,7 +73,7 @@ export function DeleteAccountSection({ testID = 'delete-account-button' }: { tes
         disabled={deleteAccount.isPending}
         testID={testID}
         accessibilityRole="button"
-        accessibilityLabel="Delete account"
+        accessibilityLabel={t('account.delete.button')}
         style={{
           minHeight: 52,
           borderRadius: radius.xl,
@@ -88,7 +90,7 @@ export function DeleteAccountSection({ testID = 'delete-account-button' }: { tes
       >
         <Trash2 color={colors.danger.base} size={18} strokeWidth={2} />
         <Text style={{ ...typography.h4, color: colors.danger.base }}>
-          {deleteAccount.isPending ? 'Deleting account…' : 'Delete account'}
+          {deleteAccount.isPending ? t('account.delete.deleting') : t('account.delete.button')}
         </Text>
       </Pressable>
       <Text
@@ -99,7 +101,7 @@ export function DeleteAccountSection({ testID = 'delete-account-button' }: { tes
           marginTop: spacing.sm,
         }}
       >
-        Deletes your account and its data permanently. This cannot be undone.
+        {t('account.delete.footerNote')}
       </Text>
     </View>
   );

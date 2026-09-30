@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/react-native";
 import { fetch } from "expo/fetch";
 import { router } from "expo-router";
+import { translate } from "@/i18n/active";
 import { authClient } from "../auth/auth-client";
 import { BACKEND_URL } from "../config";
 
@@ -8,13 +9,13 @@ const baseUrl = BACKEND_URL;
 
 export class NetworkError extends Error {
   constructor() {
-    super("No internet connection");
+    super(translate("net.offline"));
     this.name = "NetworkError";
   }
 }
 
 export class AuthError extends Error {
-  constructor(message = "Session expired") {
+  constructor(message = translate("account.error.sessionExpired")) {
     super(message);
     this.name = "AuthError";
   }
@@ -55,7 +56,7 @@ const request = async <T>(
   if (response.status === 401) {
     await authClient.signOut();
     router.replace("/welcome");
-    throw new AuthError("Session expired");
+    throw new AuthError(translate("account.error.sessionExpired"));
   }
 
   if (response.status === 204) {
@@ -67,14 +68,14 @@ const request = async <T>(
   if (response.status === 402 && json && typeof json === "object" && "error" in json) {
     const err = json as { error?: { message?: string; code?: string } };
     throw new FeatureUnavailableError(
-      err.error?.message ?? "This feature is not available for your workspace",
+      err.error?.message ?? translate("account.error.featureUnavailable"),
       err.error?.code ?? "FEATURE_UNAVAILABLE",
     );
   }
 
   if (json && typeof json === "object" && "error" in json) {
     const err = json as { error?: { message?: string } };
-    const error = new Error(err.error?.message ?? "Request failed");
+    const error = new Error(err.error?.message ?? translate("account.error.requestFailed"));
     Sentry.captureException(error);
     throw error;
   }

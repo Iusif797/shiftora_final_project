@@ -9,12 +9,21 @@ import { SurfaceCard } from '@/components/cards';
 import { StaggerItem } from '@/components/ui/motion';
 import { ScalePressable } from '@/components/ui/pressable';
 import { CardListSkeleton } from '@/components/ui/skeletons';
+import { useT } from '@/i18n/I18nProvider';
+import type { TranslationKey } from '@/i18n/resolver';
 import { api } from '@/lib/api/api';
 import { showError, showSuccess } from '@/lib/toast';
 import { colors, radius, spacing, typography } from '@/theme';
 import type { RestaurantTable } from '@/types/pos';
 
+const tableStatusKey: Record<RestaurantTable['status'], TranslationKey> = {
+  FREE: 'ops.floor.status.free',
+  OCCUPIED: 'ops.floor.status.occupied',
+  RESERVED: 'ops.floor.status.reserved',
+};
+
 export default function TablesManageScreen() {
+  const t = useT();
   const queryClient = useQueryClient();
   const [number, setNumber] = useState('');
   const [label, setLabel] = useState('');
@@ -40,37 +49,37 @@ export default function TablesManageScreen() {
       setNumber('');
       setLabel('');
       setCapacity('4');
-      showSuccess('Table added');
+      showSuccess(t('ops.tables.tableAdded'));
       invalidate();
     },
-    onError: (err) => showError('Failed', err.message),
+    onError: (err) => showError(t('ops.tables.actionFailed'), err.message),
   });
 
   const deleteTable = useMutation({
     mutationFn: (id: string) => api.delete<{ success: boolean }>(`/api/tables/${id}`),
     onSuccess: () => {
-      showSuccess('Table removed');
+      showSuccess(t('ops.tables.tableRemoved'));
       invalidate();
     },
-    onError: (err) => showError('Failed', err.message),
+    onError: (err) => showError(t('ops.tables.actionFailed'), err.message),
   });
 
   const canSubmit = Number(number) > 0;
 
   return (
     <ScreenScroll
-      title="Tables"
-      subtitle="Floor numbers and seats"
+      title={t('ops.tables.title')}
+      subtitle={t('ops.tables.subtitle')}
       leftSlot={<ScalePressable onPress={() => router.back()} scale={0.9} testID="tables-manage-back"><X color={colors.text.secondary} size={22} /></ScalePressable>}
       testID="tables-manage-screen"
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={colors.brand.gold} />}
     >
       <SurfaceCard>
-        <Text style={{ ...typography.h4, color: colors.text.primary, marginBottom: spacing.md }}>Add table</Text>
-        <TextInput value={number} onChangeText={setNumber} placeholder="Number (1, 2, 3…)" keyboardType="number-pad" placeholderTextColor={colors.text.disabled} style={{ minHeight: 48, borderWidth: 1, borderColor: colors.border.default, borderRadius: radius.lg, paddingHorizontal: spacing.md, color: colors.text.primary, marginBottom: spacing.sm }} testID="table-number-input" />
-        <TextInput value={label} onChangeText={setLabel} placeholder="Label (Terrace, Window…)" placeholderTextColor={colors.text.disabled} style={{ minHeight: 48, borderWidth: 1, borderColor: colors.border.default, borderRadius: radius.lg, paddingHorizontal: spacing.md, color: colors.text.primary, marginBottom: spacing.sm }} testID="table-label-input" />
-        <TextInput value={capacity} onChangeText={setCapacity} placeholder="Seats" keyboardType="number-pad" placeholderTextColor={colors.text.disabled} style={{ minHeight: 48, borderWidth: 1, borderColor: colors.border.default, borderRadius: radius.lg, paddingHorizontal: spacing.md, color: colors.text.primary, marginBottom: spacing.md }} testID="table-capacity-input" />
-        <PrimaryButton label="Add table" icon={Plus} onPress={() => createTable.mutate()} loading={createTable.isPending} disabled={!canSubmit} testID="add-table-button" />
+        <Text style={{ ...typography.h4, color: colors.text.primary, marginBottom: spacing.md }}>{t('ops.tables.addTable')}</Text>
+        <TextInput value={number} onChangeText={setNumber} placeholder={t('ops.tables.numberPlaceholder')} keyboardType="number-pad" placeholderTextColor={colors.text.disabled} style={{ minHeight: 48, borderWidth: 1, borderColor: colors.border.default, borderRadius: radius.lg, paddingHorizontal: spacing.md, color: colors.text.primary, marginBottom: spacing.sm }} testID="table-number-input" />
+        <TextInput value={label} onChangeText={setLabel} placeholder={t('ops.tables.labelPlaceholder')} placeholderTextColor={colors.text.disabled} style={{ minHeight: 48, borderWidth: 1, borderColor: colors.border.default, borderRadius: radius.lg, paddingHorizontal: spacing.md, color: colors.text.primary, marginBottom: spacing.sm }} testID="table-label-input" />
+        <TextInput value={capacity} onChangeText={setCapacity} placeholder={t('ops.tables.seatsPlaceholder')} keyboardType="number-pad" placeholderTextColor={colors.text.disabled} style={{ minHeight: 48, borderWidth: 1, borderColor: colors.border.default, borderRadius: radius.lg, paddingHorizontal: spacing.md, color: colors.text.primary, marginBottom: spacing.md }} testID="table-capacity-input" />
+        <PrimaryButton label={t('ops.tables.addTable')} icon={Plus} onPress={() => createTable.mutate()} loading={createTable.isPending} disabled={!canSubmit} testID="add-table-button" />
       </SurfaceCard>
 
       {isLoading ? (
@@ -88,8 +97,12 @@ export default function TablesManageScreen() {
                   <Text style={{ ...typography.h3, color: colors.brand.primaryLight }}>{table.number}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ ...typography.body, color: colors.text.primary }}>{table.label ?? `Table ${table.number}`}</Text>
-                  <Text style={{ ...typography.caption, color: colors.text.tertiary }}>{table.capacity} seats · {table.status.toLowerCase()}</Text>
+                  <Text style={{ ...typography.body, color: colors.text.primary }}>
+                    {table.label ?? t('ops.floor.tableLabel', { number: table.number })}
+                  </Text>
+                  <Text style={{ ...typography.caption, color: colors.text.tertiary }}>
+                    {t('ops.tables.capacityLine', { count: table.capacity, status: t(tableStatusKey[table.status]) })}
+                  </Text>
                 </View>
                 <ScalePressable onPress={() => deleteTable.mutate(table.id)} disabled={deleteTable.isPending} scale={0.9} hitSlop={12} testID={`delete-table-${table.number}`}>
                   <Trash2 color={colors.danger.base} size={20} />

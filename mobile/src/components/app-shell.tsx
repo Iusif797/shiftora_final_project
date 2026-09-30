@@ -3,6 +3,7 @@ import type { RefreshControlProps } from 'react-native';
 import { ImageBackground, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { HeaderActions } from '@/components/header-actions';
 import { colors, gradients, shadows, spacing, typography } from '@/theme';
 
 interface AppBackgroundProps {
@@ -13,6 +14,11 @@ interface ScreenHeaderProps {
   title: string;
   subtitle?: string;
   leftSlot?: ReactNode;
+  /**
+   * Trailing header cluster. Left out entirely, you get the standard
+   * language + account icons; pass `null` to show nothing, or your own node
+   * to replace them.
+   */
   rightSlot?: ReactNode;
 }
 
@@ -49,7 +55,7 @@ export function AppBackground({ children }: AppBackgroundProps) {
         style={{
           position: 'absolute',
           top: -70,
-          right: -40,
+          end: -40,
           width: 220,
           height: 220,
           borderRadius: 110,
@@ -59,7 +65,7 @@ export function AppBackground({ children }: AppBackgroundProps) {
       <View
         style={{
           position: 'absolute',
-          left: -20,
+          start: -20,
           top: 180,
           width: 180,
           height: 180,
@@ -70,7 +76,7 @@ export function AppBackground({ children }: AppBackgroundProps) {
       <View
         style={{
           position: 'absolute',
-          right: 40,
+          end: 40,
           bottom: -30,
           width: 150,
           height: 150,
@@ -84,6 +90,8 @@ export function AppBackground({ children }: AppBackgroundProps) {
 }
 
 export function ScreenHeader({ title, subtitle, leftSlot, rightSlot }: ScreenHeaderProps) {
+  const trailing = rightSlot === undefined ? <HeaderActions /> : rightSlot;
+
   return (
     <View
       style={{
@@ -102,7 +110,7 @@ export function ScreenHeader({ title, subtitle, leftSlot, rightSlot }: ScreenHea
             <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: 4 }}>{subtitle}</Text>
           ) : null}
         </View>
-        {rightSlot ? <View>{rightSlot}</View> : null}
+        {trailing ? <View>{trailing}</View> : null}
       </View>
     </View>
   );

@@ -23,8 +23,6 @@ function buildTrustedOrigins(): string[] {
     ...appSchemes,
     "exp://",
     "exp://**",
-    "vibecode://",
-    "vibecode://**",
     "http://localhost:*",
     "http://127.0.0.1:*",
     "http://192.168.*:*",

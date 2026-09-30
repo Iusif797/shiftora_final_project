@@ -9,6 +9,8 @@ import { ArrowRight } from 'lucide-react-native';
 import PagerView from 'react-native-pager-view';
 import { PrimaryButton, SecondaryButton } from '@/components/buttons';
 import { colors, fonts, radius, spacing, typography } from '@/theme';
+import { useT } from '@/i18n/I18nProvider';
+import { LanguageSwitcher } from '@/components/language-switcher';
 
 const heroImage = require('../../assets/onboarding/hero.png');
 const operationsImage = require('../../assets/onboarding/operations.png');
@@ -16,34 +18,15 @@ const successImage = require('../../assets/onboarding/success.png');
 
 type Slide = {
   id: string;
-  tag: string;
-  title: string;
-  subtitle: string;
+  titleKey: string;
+  subtitleKey: string;
   image: number;
 };
 
 const slides: Slide[] = [
-  {
-    id: '1',
-    tag: 'Shift Management',
-    title: 'Manage shifts easily',
-    subtitle: 'Plan, organize and track team schedules seamlessly in real-time.',
-    image: heroImage,
-  },
-  {
-    id: '2',
-    tag: 'Live Presence',
-    title: 'Track attendance',
-    subtitle: 'Check-in staff and monitor real-time presence across all stations.',
-    image: operationsImage,
-  },
-  {
-    id: '3',
-    tag: 'Insights & Growth',
-    title: 'Team analytics',
-    subtitle: 'Gain actionable insights on staffing efficiency and performance.',
-    image: successImage,
-  },
+  { id: '1', titleKey: 'auth.welcome.slide1Title', subtitleKey: 'auth.welcome.slide1Subtitle', image: heroImage },
+  { id: '2', titleKey: 'auth.welcome.slide2Title', subtitleKey: 'auth.welcome.slide2Subtitle', image: operationsImage },
+  { id: '3', titleKey: 'auth.welcome.slide3Title', subtitleKey: 'auth.welcome.slide3Subtitle', image: successImage },
 ];
 
 function SlideIndicator({
@@ -76,6 +59,7 @@ function SlideIndicator({
 }
 
 export default function WelcomeScreen() {
+  const t = useT();
   const insets = useSafeAreaInsets();
   const [currentSlide, setCurrentSlide] = useState(0);
   const pagerRef = useRef<PagerView>(null);
@@ -150,8 +134,8 @@ export default function WelcomeScreen() {
                 },
               ]}
             >
-              <Text style={styles.title}>{slide.title}</Text>
-              <Text style={styles.subtitle}>{slide.subtitle}</Text>
+              <Text style={styles.title}>{t(slide.titleKey as any)}</Text>
+              <Text style={styles.subtitle}>{t(slide.subtitleKey as any)}</Text>
             </View>
           </View>
         ))}
@@ -170,7 +154,7 @@ export default function WelcomeScreen() {
 
         <View style={{ marginTop: spacing.xl }}>
           <PrimaryButton
-            label={currentSlide === slides.length - 1 ? 'Enter Shiftora' : 'Continue'}
+            label={currentSlide === slides.length - 1 ? t('auth.welcome.enter') : t('common.next')}
             onPress={handleNext}
             icon={ArrowRight}
             testID="next-button"
@@ -179,7 +163,7 @@ export default function WelcomeScreen() {
 
         <View style={{ marginTop: spacing.sm }}>
           <SecondaryButton
-            label="Skip to sign in"
+            label={t('auth.welcome.skipToSignIn')}
             onPress={handleGetStarted}
             testID="skip-button"
           />

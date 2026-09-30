@@ -10,6 +10,7 @@ import { ToastHost } from '@/components/ui/toast';
 import { WifiOff } from 'lucide-react-native';
 import { ConnectionErrorScreen } from '@/components/connection-error';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { I18nProvider, useT } from '@/i18n/I18nProvider';
 import { useSession } from '@/lib/auth/use-session';
 import { useNetworkStatus } from '@/lib/use-network';
 import { colors, typography, spacing } from '@/theme';
@@ -39,6 +40,7 @@ const queryClient = new QueryClient({
 
 function OfflineBanner() {
   const isConnected = useNetworkStatus();
+  const t = useT();
   if (isConnected) return null;
 
   return (
@@ -54,7 +56,7 @@ function OfflineBanner() {
       }}
     >
       <WifiOff color="#FFFFFF" size={14} strokeWidth={2} />
-      <Text style={{ ...typography.caption, color: '#FFFFFF' }}>No internet connection</Text>
+      <Text style={{ ...typography.caption, color: '#FFFFFF' }}>{t('net.offline')}</Text>
     </View>
   );
 }
@@ -136,8 +138,10 @@ function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <ErrorBoundary>
         <GestureHandlerRootView style={{ flex: 1 }}>
-          <RootLayoutNav />
-          <ToastHost />
+          <I18nProvider>
+            <RootLayoutNav />
+            <ToastHost />
+          </I18nProvider>
         </GestureHandlerRootView>
       </ErrorBoundary>
     </QueryClientProvider>

@@ -13,9 +13,24 @@ import { CardListSkeleton } from '@/components/ui/skeletons';
 import { api } from '@/lib/api/api';
 import { formatDate, formatTime } from '@/lib/formatters';
 import { anomalyAppearance, colors, spacing, typography } from '@/theme';
-import type { Anomaly } from '@/types/app';
+import { useT } from '@/i18n/I18nProvider';
+import type { TranslationKey } from '@/i18n/I18nProvider';
+import type { Anomaly, AnomalySeverity, AnomalyType } from '@/types/app';
+
+const ANOMALY_TYPE_LABEL_KEYS: Record<AnomalyType, TranslationKey> = {
+  LATE_ARRIVAL: 'schedule.alerts.type.lateArrival',
+  MISSED_SHIFT: 'schedule.alerts.type.missedShift',
+  EARLY_LEAVE: 'schedule.alerts.type.earlyLeave',
+};
+
+const ANOMALY_SEVERITY_LABEL_KEYS: Record<AnomalySeverity, TranslationKey> = {
+  HIGH: 'schedule.alerts.severity.high',
+  MEDIUM: 'schedule.alerts.severity.medium',
+  LOW: 'schedule.alerts.severity.low',
+};
 
 export default function Alerts() {
+  const t = useT();
   const queryClient = useQueryClient();
   const [resolvingId, setResolvingId] = useState<string | null>(null);
 
@@ -39,8 +54,8 @@ export default function Alerts() {
 
   return (
     <ScreenScroll
-      title="Alerts"
-      subtitle="Late arrivals, missed shifts, and staffing anomalies"
+      title={t('schedule.alerts.title')}
+      subtitle={t('schedule.alerts.subtitle')}
       leftSlot={
         <ScalePressable onPress={() => router.back()} testID="alerts-back" hitSlop={12} scale={0.9} style={{ padding: 4 }}>
           <X color={colors.text.secondary} size={22} strokeWidth={2} />
@@ -67,25 +82,25 @@ export default function Alerts() {
                   <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md }}>
                     <View style={{ flex: 1 }}>
                       <Text style={{ ...typography.h4, color: colors.text.primary }}>
-                        {anomaly.employee?.user?.name ?? 'Unknown employee'}
+                        {anomaly.employee?.user?.name ?? t('schedule.alerts.unknownEmployee')}
                       </Text>
                       <Text style={{ ...typography.bodySmall, color: colors.text.secondary, marginTop: 4 }}>
-                        {anomaly.type.replace(/_/g, ' ')}
+                        {t(ANOMALY_TYPE_LABEL_KEYS[anomaly.type])}
                       </Text>
                       <Text style={{ ...typography.caption, color: colors.text.tertiary, marginTop: spacing.sm }}>
                         {formatDate(anomaly.detectedAt)} · {formatTime(anomaly.detectedAt)}
                       </Text>
                       {anomaly.shiftAssignment?.shift?.title ? (
                         <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: spacing.sm }}>
-                          Shift: {anomaly.shiftAssignment.shift.title}
+                          {t('schedule.alerts.shiftLabel', { title: anomaly.shiftAssignment.shift.title })}
                         </Text>
                       ) : null}
                     </View>
-                    <AccentBadge label={anomaly.severity} color={appearance.color} tint={appearance.tint} />
+                    <AccentBadge label={t(ANOMALY_SEVERITY_LABEL_KEYS[anomaly.severity])} color={appearance.color} tint={appearance.tint} />
                   </View>
                   <View style={{ marginTop: spacing.lg }}>
                     <SecondaryButton
-                      label={isResolving ? 'Resolving...' : 'Mark as resolved'}
+                      label={isResolving ? t('schedule.alerts.resolving') : t('schedule.alerts.markResolved')}
                       onPress={() => resolveMutation.mutate(anomaly.id)}
                       disabled={resolveMutation.isPending}
                       testID={`resolve-anomaly-${anomaly.id}`}
@@ -99,8 +114,8 @@ export default function Alerts() {
       ) : !isLoading ? (
         <EmptyState
           icon={AlertTriangle}
-          title="No active alerts"
-          description="Everything looks stable right now. New anomalies will surface here automatically."
+          title={t('schedule.alerts.emptyTitle')}
+          description={t('schedule.alerts.emptyDescription')}
           color={colors.success.base}
         />
       ) : null}

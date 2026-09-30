@@ -18,9 +18,20 @@ import { showError, showSuccess } from '@/lib/toast';
 import { useSession } from '@/lib/auth/use-session';
 import { formatDate, formatTime } from '@/lib/formatters';
 import { colors, radius, spacing, statusAppearance, typography } from '@/theme';
+import { useT } from '@/i18n/I18nProvider';
+import { floatingActionButton } from '@/i18n/rtl-styles';
+import type { TranslationKey } from '@/i18n/I18nProvider';
 import type { AppUser, Shift, ShiftAssignment, Employee } from '@/types/app';
 
+const SHIFT_STATUS_LABEL_KEYS: Record<Shift['status'], TranslationKey> = {
+  SCHEDULED: 'schedule.shifts.status.scheduled',
+  ACTIVE: 'schedule.shifts.status.active',
+  COMPLETED: 'schedule.shifts.status.completed',
+  CANCELLED: 'schedule.shifts.status.cancelled',
+};
+
 function ShiftCard({ shift, onShowQR, onEdit }: { shift: Shift; onShowQR?: (s: Shift) => void; onEdit?: (s: Shift) => void }) {
+  const t = useT();
   const appearance = statusAppearance[shift.status] ?? statusAppearance.SCHEDULED;
   const hasAssignments = (shift.assignments?.length ?? 0) > 0;
 
@@ -41,13 +52,17 @@ function ShiftCard({ shift, onShowQR, onEdit }: { shift: Shift; onShowQR?: (s: S
                 scale={0.9}
                 hitSlop={8}
                 style={{ padding: spacing.xs }}
-                accessibilityLabel="Edit shift"
+                accessibilityLabel={t('schedule.shifts.edit')}
                 testID={`edit-shift-${shift.id}`}
               >
                 <Pencil color={colors.text.secondary} size={16} strokeWidth={2} />
               </ScalePressable>
             ) : null}
-            <AccentBadge label={shift.status.toLowerCase()} color={appearance.color} tint={appearance.tint} />
+            <AccentBadge
+              label={t(SHIFT_STATUS_LABEL_KEYS[shift.status] ?? SHIFT_STATUS_LABEL_KEYS.SCHEDULED)}
+              color={appearance.color}
+              tint={appearance.tint}
+            />
           </View>
         </View>
         {shift.notes ? (
@@ -57,7 +72,9 @@ function ShiftCard({ shift, onShowQR, onEdit }: { shift: Shift; onShowQR?: (s: S
         ) : null}
         {hasAssignments ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md }}>
-            <Text style={{ ...typography.caption, color: colors.text.tertiary }}>{shift.assignments!.length} assigned</Text>
+            <Text style={{ ...typography.caption, color: colors.text.tertiary }}>
+              {t('schedule.shifts.assignedCount', { count: shift.assignments!.length })}
+            </Text>
             <QrCode color={colors.brand.gold} size={14} strokeWidth={2} />
           </View>
         ) : null}
@@ -67,6 +84,7 @@ function ShiftCard({ shift, onShowQR, onEdit }: { shift: Shift; onShowQR?: (s: S
 }
 
 function QRModal({ shift, visible, onClose }: { shift: Shift | null; visible: boolean; onClose: () => void }) {
+  const t = useT();
   const { data: tokens, isLoading, isError, refetch } = useQuery({
     queryKey: ['checkin-tokens', shift?.id],
     queryFn: () =>
@@ -85,7 +103,7 @@ function QRModal({ shift, visible, onClose }: { shift: Shift | null; visible: bo
       <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: spacing.xl }} onPress={onClose}>
         <Pressable style={{ backgroundColor: colors.bg.card, borderRadius: radius.xl, padding: spacing.xl, borderWidth: 1, borderColor: colors.border.default }} onPress={(e) => e.stopPropagation()}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.lg }}>
-            <Text style={{ ...typography.h3, color: colors.text.primary }}>Check-in QR</Text>
+            <Text style={{ ...typography.h3, color: colors.text.primary }}>{t('schedule.shifts.qr.title')}</Text>
             <Pressable onPress={onClose} style={{ padding: spacing.sm }}>
               <X color={colors.text.secondary} size={20} strokeWidth={2} />
             </Pressable>
@@ -96,8 +114,8 @@ function QRModal({ shift, visible, onClose }: { shift: Shift | null; visible: bo
               {isLoading ? <ActivityIndicator color={colors.brand.primary} /> : null}
               {isError ? (
                 <View style={{ alignItems: 'center', gap: spacing.md }}>
-                  <Text style={{ ...typography.bodySmall, color: colors.danger.base }}>Could not load secure QR codes.</Text>
-                  <PrimaryButton label="Try again" onPress={() => refetch()} />
+                  <Text style={{ ...typography.bodySmall, color: colors.danger.base }}>{t('schedule.shifts.qr.loadError')}</Text>
+                  <PrimaryButton label={t('common.retry')} onPress={() => refetch()} />
                 </View>
               ) : null}
               {tokens?.map((item) => (
@@ -106,7 +124,7 @@ function QRModal({ shift, visible, onClose }: { shift: Shift | null; visible: bo
                   <View style={{ padding: spacing.md, backgroundColor: '#FFFFFF', borderRadius: radius.lg }}>
                     <QRCode value={item.token} size={180} backgroundColor="#FFFFFF" color="#000000" />
                   </View>
-                  <Text style={{ ...typography.caption, color: colors.text.tertiary, marginTop: spacing.sm }}>Refreshes every 8 minutes</Text>
+                  <Text style={{ ...typography.caption, color: colors.text.tertiary, marginTop: spacing.sm }}>{t('schedule.shifts.qr.refreshNote')}</Text>
                 </View>
               ))}
             </View>
@@ -128,6 +146,7 @@ function CreateShiftModal({
   onCreated: () => void;
   employees: Employee[];
 }) {
+  const t = useT();
   const today = new Date().toISOString().split('T')[0] ?? '';
   const [title, setTitle] = useState<string>('');
   const [date, setDate] = useState<string>(today);
@@ -165,10 +184,10 @@ function CreateShiftModal({
   });
 
   const fields = [
-    { key: 'title', label: 'Shift title', value: title, setValue: setTitle, placeholder: 'Dinner service' },
-    { key: 'date', label: 'Date', value: date, setValue: setDate, placeholder: today },
-    { key: 'start', label: 'Start time', value: startHour, setValue: setStartHour, placeholder: '09:00' },
-    { key: 'end', label: 'End time', value: endHour, setValue: setEndHour, placeholder: '17:00' },
+    { key: 'title', label: t('schedule.shifts.form.titleLabel'), value: title, setValue: setTitle, placeholder: t('schedule.shifts.form.titlePlaceholder') },
+    { key: 'date', label: t('schedule.shifts.form.dateLabel'), value: date, setValue: setDate, placeholder: today },
+    { key: 'start', label: t('schedule.shifts.form.startTimeLabel'), value: startHour, setValue: setStartHour, placeholder: '09:00' },
+    { key: 'end', label: t('schedule.shifts.form.endTimeLabel'), value: endHour, setValue: setEndHour, placeholder: '17:00' },
   ] as const;
 
   const toggleEmployee = (id: string) => {
@@ -193,7 +212,7 @@ function CreateShiftModal({
           }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xl }}>
-            <Text style={{ ...typography.h2, color: colors.text.primary }}>Create shift</Text>
+            <Text style={{ ...typography.h2, color: colors.text.primary }}>{t('schedule.shifts.create')}</Text>
             <Pressable
               onPress={onClose}
               style={{
@@ -237,7 +256,7 @@ function CreateShiftModal({
               ))}
 
               <View>
-                <Text style={{ ...typography.label, color: colors.text.tertiary, marginBottom: spacing.sm }}>Notes</Text>
+                <Text style={{ ...typography.label, color: colors.text.tertiary, marginBottom: spacing.sm }}>{t('schedule.shifts.form.notesLabel')}</Text>
                 <View
                   style={{
                     borderRadius: radius.lg,
@@ -249,7 +268,7 @@ function CreateShiftModal({
                   <TextInput
                     value={notes}
                     onChangeText={setNotes}
-                    placeholder="Optional notes"
+                    placeholder={t('schedule.shifts.form.notesPlaceholder')}
                     placeholderTextColor={colors.text.disabled}
                     style={{ minHeight: 52, paddingHorizontal: spacing.lg, color: colors.text.primary, fontSize: 16 }}
                     testID="shift-input-notes"
@@ -259,7 +278,7 @@ function CreateShiftModal({
 
               {employees.length > 0 && (
                 <View style={{ marginTop: spacing.sm }}>
-                  <Text style={{ ...typography.label, color: colors.text.tertiary, marginBottom: spacing.sm }}>Assign employees</Text>
+                  <Text style={{ ...typography.label, color: colors.text.tertiary, marginBottom: spacing.sm }}>{t('schedule.shifts.form.assignEmployeesLabel')}</Text>
                   <View style={{ gap: spacing.sm }}>
                     {employees.map((emp) => {
                       const isSelected = assignedEmployeeIds.includes(emp.id);
@@ -303,7 +322,7 @@ function CreateShiftModal({
             </View>
             <View style={{ marginTop: spacing.xl }}>
               <PrimaryButton
-                label="Create shift"
+                label={t('schedule.shifts.create')}
                 onPress={() => mutation.mutate()}
                 loading={mutation.isPending}
                 icon={Plus}
@@ -319,6 +338,7 @@ function CreateShiftModal({
 }
 
 export default function Shifts() {
+  const t = useT();
   const { create } = useLocalSearchParams<{ create?: string }>();
   const handledCreateParam = useRef<string | undefined>(undefined);
   const { data: session } = useSession();
@@ -354,9 +374,12 @@ export default function Shifts() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ['shifts'] });
       const count = data?.created ?? 0;
-      showSuccess(count > 0 ? `${count} shifts created` : 'Schedule up to date', count > 0 ? 'Auto-generated for next week.' : 'No new slots needed.');
+      showSuccess(
+        count > 0 ? t('schedule.shifts.generateSuccessCount', { count }) : t('schedule.shifts.generateUpToDateTitle'),
+        count > 0 ? t('schedule.shifts.generateSuccessDescription') : t('schedule.shifts.generateUpToDateDescription'),
+      );
     },
-    onError: (err) => showError('Generation failed', err.message),
+    onError: (err) => showError(t('schedule.shifts.generateFailedTitle'), err.message),
   });
 
   const { data: myShifts, isLoading: loadingMy, isRefetching: refreshingMy, refetch: refetchMy } = useQuery({
@@ -370,8 +393,12 @@ export default function Shifts() {
   return (
     <>
       <ScreenScroll
-        title="Schedule"
-        subtitle={isManager ? `${shifts?.length ?? 0} scheduled` : `${myShifts?.length ?? 0} assigned`}
+        title={t('tabs.schedule')}
+        subtitle={
+          isManager
+            ? t('schedule.shifts.scheduledCount', { count: shifts?.length ?? 0 })
+            : t('schedule.shifts.assignedCount', { count: myShifts?.length ?? 0 })
+        }
         testID="shifts-scroll"
         refreshControl={
           <RefreshControl
@@ -400,10 +427,10 @@ export default function Shifts() {
             ) : !loading ? (
               <EmptyState
                 icon={Calendar}
-                title="No shifts yet"
-                description="Create your first shift to start planning the week."
+                title={t('schedule.shifts.emptyManagerTitle')}
+                description={t('schedule.shifts.emptyManagerDescription')}
                 color={colors.brand.primary}
-                action={{ label: 'Create shift', onPress: () => setShowCreate(true), testID: 'shifts-empty-create' }}
+                action={{ label: t('schedule.shifts.create'), onPress: () => setShowCreate(true), testID: 'shifts-empty-create' }}
                 testID="shifts-empty"
               />
             ) : null
@@ -420,8 +447,8 @@ export default function Shifts() {
           ) : !loading ? (
             <EmptyState
               icon={Clock3}
-              title="No shifts assigned"
-              description="Your manager will assign shifts here when the schedule is ready."
+              title={t('schedule.shifts.emptyEmployeeTitle')}
+              description={t('schedule.shifts.emptyEmployeeDescription')}
               color={colors.brand.gold}
               testID="my-shifts-empty"
             />
@@ -432,14 +459,14 @@ export default function Shifts() {
       {isManager ? (
         <Animated.View
           entering={enterZoom(2)}
-          style={{ position: 'absolute', bottom: 130, right: 20, flexDirection: 'row', gap: 12 }}
+          style={[floatingActionButton, { bottom: 130, flexDirection: 'row', gap: 12 }]}
         >
           <ScalePressable
             onPress={() => generateMutation.mutate()}
             disabled={generateMutation.isPending}
             scale={0.9}
             haptic="medium"
-            accessibilityLabel="Auto-generate schedule"
+            accessibilityLabel={t('schedule.shifts.autoGenerate')}
             style={{
               width: 56,
               height: 56,
@@ -465,7 +492,7 @@ export default function Shifts() {
             onPress={() => setShowCreate(true)}
             scale={0.9}
             haptic="medium"
-            accessibilityLabel="Create shift"
+            accessibilityLabel={t('schedule.shifts.create')}
             style={{
               width: 56,
               height: 56,

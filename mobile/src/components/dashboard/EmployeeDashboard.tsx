@@ -7,6 +7,7 @@ import { AccentBadge, PrimaryButton } from '@/components/buttons';
 import { EmptyState, ErrorState, HighlightCard, MetricCard, SurfaceCard } from '@/components/cards';
 import { StaggerItem } from '@/components/ui/motion';
 import { CardListSkeleton, HeroSkeleton, MetricGridSkeleton } from '@/components/ui/skeletons';
+import { useT } from '@/i18n/I18nProvider';
 import { api } from '@/lib/api/api';
 import {
   OFFLINE_CHECKIN_QUEUE_KEY,
@@ -21,6 +22,7 @@ import { colors, spacing, typography } from '@/theme';
 import type { Checkin, ShiftAssignment } from '@/types/app';
 
 export function EmployeeDashboard() {
+  const t = useT();
   const queryClient = useQueryClient();
   const { data: offlineQueue } = useOfflineCheckinQueue();
   const pendingCheckin = useMemo(
@@ -47,15 +49,15 @@ export function EmployeeDashboard() {
     onSuccess: (result) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (result.mode === 'queued') {
-        showSuccess('Saved offline', 'Check-in will sync when you are online');
+        showSuccess(t('ops.dashboard.employee.savedOfflineTitle'), t('ops.dashboard.employee.checkinQueuedBody'));
       } else {
-        showSuccess('Clocked in', 'Your shift has started');
+        showSuccess(t('ops.dashboard.employee.clockedInTitle'), t('ops.dashboard.employee.clockedInBody'));
       }
       void invalidateAttendance();
     },
     onError: (err: Error) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      showError('Check-in failed', err.message);
+      showError(t('ops.dashboard.employee.checkinFailedTitle'), err.message);
     },
   });
 
@@ -64,21 +66,21 @@ export function EmployeeDashboard() {
       if (pendingCheckin) {
         return submitCheckout({ pendingCheckinLocalId: pendingCheckin.localId });
       }
-      if (!activeCheckin?.id) throw new Error('No active check-in');
+      if (!activeCheckin?.id) throw new Error(t('ops.dashboard.employee.noActiveCheckinError'));
       return submitCheckout({ checkinId: activeCheckin.id });
     },
     onSuccess: (result) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (result.mode === 'queued') {
-        showSuccess('Saved offline', 'Checkout will sync when you are online');
+        showSuccess(t('ops.dashboard.employee.savedOfflineTitle'), t('ops.dashboard.employee.checkoutQueuedBody'));
       } else {
-        showSuccess('Clocked out', 'Your shift has ended');
+        showSuccess(t('ops.dashboard.employee.clockedOutTitle'), t('ops.dashboard.employee.clockedOutBody'));
       }
       void invalidateAttendance();
     },
     onError: (err: Error) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      showError('Checkout failed', err.message);
+      showError(t('ops.dashboard.employee.checkoutFailedTitle'), err.message);
     },
   });
 
@@ -100,7 +102,7 @@ export function EmployeeDashboard() {
     return (
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: spacing.md, paddingBottom: 100 }}
-        accessibilityLabel="Loading shifts"
+        accessibilityLabel={t('ops.dashboard.employee.loadingA11y')}
       >
         <View style={{ gap: spacing.lg }}>
           <HeroSkeleton />
@@ -120,7 +122,7 @@ export function EmployeeDashboard() {
         }
       >
         <ErrorState
-          message={error instanceof Error ? error.message : 'Could not load shifts'}
+          message={error instanceof Error ? error.message : t('ops.dashboard.employee.loadError')}
           onRetry={() => refetch()}
           testID="employee-dashboard-error"
         />
@@ -137,7 +139,7 @@ export function EmployeeDashboard() {
   const pendingShiftTitle =
     nextShift?.shift?.title ??
     upcoming?.find((assignment) => assignment.id === pendingCheckin?.shiftAssignmentId)?.shift?.title ??
-    'On shift';
+    t('ops.dashboard.employee.onShiftFallback');
 
   const displayActive = activeCheckin ?? (pendingCheckin
     ? {
@@ -161,25 +163,29 @@ export function EmployeeDashboard() {
           tintColor={colors.brand.primary}
         />
       }
-      accessibilityLabel="Employee dashboard"
+      accessibilityLabel={t('ops.dashboard.employee.a11yLabel')}
     >
       <StaggerItem index={0}>
         {displayActive ? (
           <HighlightCard>
             <AccentBadge
-              label={'pending' in displayActive && displayActive.pending ? 'Pending sync' : 'Active shift'}
+              label={
+                'pending' in displayActive && displayActive.pending
+                  ? t('ops.dashboard.employee.pendingSyncBadge')
+                  : t('ops.dashboard.employee.activeShiftBadge')
+              }
               color={'pending' in displayActive && displayActive.pending ? colors.warning.base : colors.success.base}
               tint={'pending' in displayActive && displayActive.pending ? colors.warning.muted : colors.success.muted}
             />
             <Text style={{ ...typography.h2, color: colors.text.primary, marginTop: spacing.lg }}>
-              {displayActive.shiftAssignment?.shift?.title ?? 'On shift'}
+              {displayActive.shiftAssignment?.shift?.title ?? t('ops.dashboard.employee.onShiftFallback')}
             </Text>
             <Text style={{ ...typography.body, color: colors.text.secondary, marginTop: spacing.sm }}>
-              Clocked in at {formatTime(displayActive.checkinTime)}
+              {t('ops.dashboard.employee.clockedInAt', { time: formatTime(displayActive.checkinTime) })}
             </Text>
             <View style={{ marginTop: spacing.xl }}>
               <PrimaryButton
-                label="Clock out"
+                label={t('ops.dashboard.employee.clockOutButton')}
                 onPress={() => checkoutMutation.mutate()}
                 loading={checkoutMutation.isPending}
                 icon={LogOut}
@@ -189,17 +195,21 @@ export function EmployeeDashboard() {
           </HighlightCard>
         ) : nextShift?.shift ? (
           <HighlightCard>
-            <AccentBadge label="Next shift" color={colors.brand.primaryLight} tint="rgba(130,102,255,0.16)" />
+            <AccentBadge label={t('ops.dashboard.employee.nextShiftBadge')} color={colors.brand.primaryLight} tint="rgba(130,102,255,0.16)" />
             <Text style={{ ...typography.h2, color: colors.text.primary, marginTop: spacing.lg }}>
               {nextShift.shift.title}
             </Text>
             <Text style={{ ...typography.body, color: colors.text.secondary, marginTop: spacing.sm }}>
-              {formatDate(nextShift.shift.startTime)} · {formatTime(nextShift.shift.startTime)} - {formatTime(nextShift.shift.endTime)}
+              {t('ops.dashboard.employee.shiftTimeRange', {
+                date: formatDate(nextShift.shift.startTime),
+                start: formatTime(nextShift.shift.startTime),
+                end: formatTime(nextShift.shift.endTime),
+              })}
             </Text>
             {canCheckIn ? (
               <View style={{ marginTop: spacing.xl }}>
                 <PrimaryButton
-                  label="Clock in"
+                  label={t('ops.dashboard.employee.clockInButton')}
                   onPress={() => checkinMutation.mutate(nextShift.id)}
                   loading={checkinMutation.isPending}
                   icon={LogIn}
@@ -211,8 +221,8 @@ export function EmployeeDashboard() {
         ) : (
           <EmptyState
             icon={CheckCircle2}
-            title="You're all caught up"
-            description="No upcoming shifts are scheduled right now."
+            title={t('ops.dashboard.employee.emptyTitle')}
+            description={t('ops.dashboard.employee.emptyDescription')}
             color={colors.success.base}
           />
         )}
@@ -220,10 +230,10 @@ export function EmployeeDashboard() {
 
       <StaggerItem index={1} style={{ marginTop: spacing.lg }}>
         <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          <MetricCard label="Upcoming" value={upcoming?.length ?? 0} icon={Calendar} color={colors.brand.primary} />
+          <MetricCard label={t('ops.dashboard.employee.upcomingLabel')} value={upcoming?.length ?? 0} icon={Calendar} color={colors.brand.primary} />
           <MetricCard
-            label="Check-in status"
-            value={displayActive ? 'Live' : 'Idle'}
+            label={t('ops.dashboard.employee.checkinStatusLabel')}
+            value={displayActive ? t('ops.dashboard.employee.statusLive') : t('ops.dashboard.employee.statusIdle')}
             icon={Clock3}
             color={displayActive ? colors.success.base : colors.brand.gold}
           />
@@ -233,17 +243,17 @@ export function EmployeeDashboard() {
       {history?.items && history.items.length > 0 ? (
         <View style={{ marginTop: spacing.lg, gap: spacing.md }}>
           <StaggerItem index={2}>
-            <Text style={{ ...typography.h3, color: colors.text.primary, marginBottom: spacing.xs }}>Recent shifts</Text>
+            <Text style={{ ...typography.h3, color: colors.text.primary, marginBottom: spacing.xs }}>{t('ops.dashboard.employee.recentShiftsTitle')}</Text>
           </StaggerItem>
           {history.items.slice(0, 3).map((entry, index) => (
             <StaggerItem key={entry.id} index={3 + index}>
               <SurfaceCard>
                 <Text style={{ ...typography.h4, color: colors.text.primary }}>
-                  {entry.shiftAssignment?.shift?.title ?? 'Recorded shift'}
+                  {entry.shiftAssignment?.shift?.title ?? t('ops.dashboard.employee.recordedShiftFallback')}
                 </Text>
                 <Text style={{ ...typography.bodySmall, color: colors.text.secondary, marginTop: 4 }}>
                   {formatDate(entry.checkinTime)} · {formatTime(entry.checkinTime)}
-                  {entry.checkoutTime ? ` - ${formatTime(entry.checkoutTime)}` : ' - in progress'}
+                  {entry.checkoutTime ? ` - ${formatTime(entry.checkoutTime)}` : t('ops.dashboard.employee.inProgressSuffix')}
                 </Text>
               </SurfaceCard>
             </StaggerItem>

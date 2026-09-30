@@ -9,6 +9,8 @@ import { MiniProgress } from '@/components/ui/mini-progress';
 import { StaggerItem } from '@/components/ui/motion';
 import { ProgressRing } from '@/components/ui/progress-ring';
 import { CardListSkeleton, HeroSkeleton, MetricGridSkeleton } from '@/components/ui/skeletons';
+import { useT } from '@/i18n/I18nProvider';
+import type { TranslationKey } from '@/i18n/resolver';
 import { api } from '@/lib/api/api';
 import { anomalyAppearance, colors, spacing, typography } from '@/theme';
 import type { AnalyticsOverview } from '@/types/app';
@@ -67,7 +69,21 @@ const staffingAppearance = {
   critical: { color: colors.danger.base, tint: colors.danger.muted },
 } as const;
 
+const staffingHealthKey: Record<AIInsights['staffingHealth'], TranslationKey> = {
+  optimal: 'ops.analytics.staffingHealth.optimal',
+  caution: 'ops.analytics.staffingHealth.caution',
+  warning: 'ops.analytics.staffingHealth.warning',
+  critical: 'ops.analytics.staffingHealth.critical',
+};
+
+const trendSeverityKey: Record<AIInsights['trends'][number]['severity'], TranslationKey> = {
+  info: 'ops.analytics.trendSeverity.info',
+  warning: 'ops.analytics.trendSeverity.warning',
+  success: 'ops.analytics.trendSeverity.success',
+};
+
 function AnalyticsScreen() {
+  const t = useT();
   const { data: overview, isLoading, isRefetching, isError, error, refetch } = useQuery({
     queryKey: ['analytics-overview'],
     queryFn: () => api.get<AnalyticsOverview>('/api/analytics/overview'),
@@ -113,8 +129,8 @@ function AnalyticsScreen() {
 
   return (
     <ScreenScroll
-      title="Analytics"
-      subtitle="Workforce insights and performance"
+      title={t('ops.analytics.title')}
+      subtitle={t('ops.analytics.subtitle')}
       testID="analytics-scroll"
       refreshControl={
         <RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} tintColor={colors.brand.gold} />
@@ -131,7 +147,7 @@ function AnalyticsScreen() {
 
         {isError ? (
           <ErrorState
-            message={error instanceof Error ? error.message : 'Could not load analytics'}
+            message={error instanceof Error ? error.message : t('ops.analytics.loadError')}
             onRetry={handleRetry}
             testID="analytics-error"
           />
@@ -142,12 +158,12 @@ function AnalyticsScreen() {
             <StaggerItem index={0}>
                 {insights ? (
                   <HighlightCard>
-                    <AccentBadge label="Staffing health" color={health.color} tint={health.tint} />
+                    <AccentBadge label={t('ops.analytics.staffingHealthLabel')} color={health.color} tint={health.tint} />
                     <Text style={{ ...typography.h2, color: colors.text.primary, marginTop: spacing.lg, textTransform: 'capitalize' }}>
-                      {insights.staffingHealth}
+                      {t(staffingHealthKey[insights.staffingHealth])}
                     </Text>
                     <Text style={{ ...typography.body, color: colors.text.secondary, marginTop: spacing.sm }}>
-                      Average hours and attendance are being tracked in real time for leadership decisions.
+                      {t('ops.analytics.staffingHealthDescription')}
                     </Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.lg }}>
                       <ProgressRing
@@ -158,9 +174,9 @@ function AnalyticsScreen() {
                         testID="analytics-attendance-ring"
                       />
                       <View style={{ flex: 1 }}>
-                        <Text style={{ ...typography.h4, color: colors.text.primary }}>Attendance rate</Text>
+                        <Text style={{ ...typography.h4, color: colors.text.primary }}>{t('ops.metric.attendanceRate')}</Text>
                         <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: 2 }}>
-                          {insights.metrics.avgHoursPerEmployee}h avg per employee
+                          {t('ops.analytics.avgHoursPerEmployee', { hours: insights.metrics.avgHoursPerEmployee })}
                         </Text>
                       </View>
                     </View>
@@ -170,9 +186,9 @@ function AnalyticsScreen() {
 
         <StaggerItem index={1} style={{ marginTop: spacing.xl }}>
           <View style={{ flexDirection: 'row', gap: spacing.md }}>
-            <MetricCard label="Hours worked" value={overview?.totalHoursWorked ?? 0} icon={Activity} color={colors.brand.primary} />
+            <MetricCard label={t('ops.analytics.hoursWorkedLabel')} value={overview?.totalHoursWorked ?? 0} icon={Activity} color={colors.brand.primary} />
             <MetricCard
-              label="Attendance"
+              label={t('ops.metric.attendance')}
               value={`${overview?.attendanceRate ?? 0}%`}
               icon={TrendingUp}
               color={colors.success.base}
@@ -181,24 +197,24 @@ function AnalyticsScreen() {
         </StaggerItem>
         <StaggerItem index={2} style={{ marginTop: spacing.md }}>
           <View style={{ flexDirection: 'row', gap: spacing.md }}>
-            <MetricCard label="Active staff" value={overview?.activeEmployeesCount ?? 0} icon={Users} color={colors.brand.gold} />
-            <MetricCard label="Alerts" value={overview?.anomalyCount ?? 0} icon={AlertTriangle} color={colors.danger.base} />
+            <MetricCard label={t('ops.metric.activeStaff')} value={overview?.activeEmployeesCount ?? 0} icon={Users} color={colors.brand.gold} />
+            <MetricCard label={t('ops.metric.alerts')} value={overview?.anomalyCount ?? 0} icon={AlertTriangle} color={colors.danger.base} />
           </View>
         </StaggerItem>
 
         {(laborCost?.today !== undefined || laborCost?.week !== undefined) ? (
           <StaggerItem index={3} style={{ marginTop: spacing.xl }}>
             <View style={{ gap: spacing.md }}>
-              <Text style={{ ...typography.h3, color: colors.text.primary }}>Cost of labor</Text>
+              <Text style={{ ...typography.h3, color: colors.text.primary }}>{t('ops.analytics.laborCostTitle')}</Text>
               <View style={{ flexDirection: 'row', gap: spacing.md }}>
                 <MetricCard
-                  label="Today"
+                  label={t('time.today')}
                   value={`$${(laborCost?.today ?? 0).toFixed(2)}`}
                   icon={Banknote}
                   color={colors.success.base}
                 />
                 <MetricCard
-                  label="This week"
+                  label={t('ops.analytics.thisWeekLabel')}
                   value={`$${(laborCost?.week ?? 0).toFixed(2)}`}
                   icon={Banknote}
                   color={colors.brand.gold}
@@ -211,7 +227,7 @@ function AnalyticsScreen() {
         {shortageSlots.length ? (
           <View style={{ marginTop: spacing.xl, gap: spacing.md }}>
             <StaggerItem index={4}>
-              <Text style={{ ...typography.h3, color: colors.text.primary }}>Staffing forecast</Text>
+              <Text style={{ ...typography.h3, color: colors.text.primary }}>{t('ops.analytics.staffingForecastTitle')}</Text>
             </StaggerItem>
             {shortageSlots.map((slot, i) => (
               <StaggerItem key={`${slot.day}-${slot.start}`} index={5 + i}>
@@ -220,7 +236,11 @@ function AnalyticsScreen() {
                     {slot.day} {slot.start}-{slot.end}
                   </Text>
                   <Text style={{ ...typography.bodySmall, color: colors.danger.base, marginTop: 4 }}>
-                    Short {slot.shortage} staff (need {slot.needed}, have {slot.assigned})
+                    {t('ops.analytics.shortageLine', {
+                      shortage: slot.shortage,
+                      needed: slot.needed,
+                      assigned: slot.assigned,
+                    })}
                   </Text>
                 </SurfaceCard>
               </StaggerItem>
@@ -248,7 +268,7 @@ function AnalyticsScreen() {
                           {trend.description}
                         </Text>
                       </View>
-                      <AccentBadge label={trend.severity} color={appearance.color} tint={appearance.tint} />
+                      <AccentBadge label={t(trendSeverityKey[trend.severity])} color={appearance.color} tint={appearance.tint} />
                     </View>
                   </SurfaceCard>
                 </StaggerItem>
@@ -280,7 +300,7 @@ function AnalyticsScreen() {
         {sortedEmployees.length ? (
           <View style={{ marginTop: spacing.xl, gap: spacing.md }}>
             <StaggerItem index={6}>
-              <Text style={{ ...typography.h3, color: colors.text.primary }}>Punctuality</Text>
+              <Text style={{ ...typography.h3, color: colors.text.primary }}>{t('ops.analytics.punctualityTitle')}</Text>
             </StaggerItem>
             {sortedEmployees.map((employee, index) => {
               const score = employee.punctualityScore ?? 100;
@@ -294,7 +314,10 @@ function AnalyticsScreen() {
                       <Text style={{ ...typography.h4, color: scoreColor }}>{score}%</Text>
                     </View>
                     <Text style={{ ...typography.bodySmall, color: colors.text.tertiary, marginTop: 4 }}>
-                      {employee.totalHours}h worked · {employee.completedShifts} shifts
+                      {t('ops.analytics.employeeStatsLine', {
+                        hours: employee.totalHours,
+                        shifts: employee.completedShifts,
+                      })}
                     </Text>
                     <View style={{ marginTop: spacing.md }}>
                       <MiniProgress value={score} color={scoreColor} />
@@ -308,8 +331,8 @@ function AnalyticsScreen() {
           <View style={{ marginTop: spacing.xl }}>
             <EmptyState
               icon={Users}
-              title="No analytics yet"
-              description="As soon as your team starts logging shifts, the insights panel will populate here."
+              title={t('ops.analytics.emptyTitle')}
+              description={t('ops.analytics.emptyDescription')}
               color={colors.brand.primary}
             />
           </View>

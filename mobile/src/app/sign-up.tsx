@@ -4,6 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { ArrowRight, UserPlus } from 'lucide-react-native';
+import { directionalIcon } from '@/components/ui/directional-icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthBackground, GlassPanel } from '@/components/app-shell';
 import { AccentBadge, PrimaryButton, SecondaryButton } from '@/components/buttons';
@@ -11,11 +12,16 @@ import { FormField } from '@/components/form-field';
 import { authClient } from '@/lib/auth/auth-client';
 import { resolvePostAuthPath } from '@/lib/auth/post-auth';
 import { useInvalidateSession } from '@/lib/auth/use-session';
+import { useT } from '@/i18n/I18nProvider';
 import { colors, radius, spacing, typography } from '@/theme';
+
+/** "Continue" arrow — a directional affordance, so it flips under RTL. */
+const ForwardArrow = directionalIcon(ArrowRight);
 
 type FocusedField = 'name' | 'email' | 'password' | 'confirmPassword' | null;
 
 export default function SignUp() {
+  const t = useT();
   const insets = useSafeAreaInsets();
   const invalidateSession = useInvalidateSession();
   const [name, setName] = useState<string>('');
@@ -32,7 +38,7 @@ export default function SignUp() {
     const nextPath = await resolvePostAuthPath();
 
     if (!nextPath) {
-      setError('Unable to start your session. Try again.');
+      setError(t('auth.error.sessionStartFailed'));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
@@ -50,7 +56,7 @@ export default function SignUp() {
       }),
     onSuccess: async (result) => {
       if (result.error) {
-        setError(result.error.message || 'Unable to create account');
+        setError(result.error.message || t('auth.error.accountCreateFailed'));
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         return;
       }
@@ -58,7 +64,7 @@ export default function SignUp() {
       await finishAuth();
     },
     onError: () => {
-      setError('Network error. Check your connection and try again.');
+      setError(t('auth.error.networkGeneric'));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     },
   });
@@ -68,31 +74,31 @@ export default function SignUp() {
     const trimmedEmail = email.trim();
 
     if (!trimmedName) {
-      setError('Enter your full name');
+      setError(t('auth.error.nameRequired'));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
 
     if (!trimmedEmail) {
-      setError('Enter your email to continue');
+      setError(t('auth.error.emailRequired'));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
 
     if (!isValidEmail(trimmedEmail)) {
-      setError('Enter a valid email address');
+      setError(t('auth.error.emailInvalid'));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
 
     if (password.length < 10) {
-      setError('Password must be at least 10 characters');
+      setError(t('auth.error.passwordTooShort'));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(t('auth.error.passwordMismatch'));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
@@ -116,16 +122,16 @@ export default function SignUp() {
           showsVerticalScrollIndicator={false}
           testID="sign-up-screen"
         >
-          <SecondaryButton label="Back to sign in" onPress={() => router.replace('/sign-in')} testID="back-button" />
+          <SecondaryButton label={t('auth.nav.backToSignIn')} onPress={() => router.replace('/sign-in')} testID="back-button" />
 
           <View style={{ flex: 1, justifyContent: 'center', paddingTop: spacing.xxxl }}>
-            <AccentBadge label="Create workspace access" color={colors.brand.gold} tint={colors.warning.muted} />
+            <AccentBadge label={t('auth.signUp.badge')} color={colors.brand.gold} tint={colors.warning.muted} />
 
             <Text style={{ ...typography.h1, color: colors.text.primary, marginTop: spacing.xl }}>
-              Create your account
+              {t('auth.signUp.title')}
             </Text>
             <Text style={{ ...typography.body, color: colors.text.secondary, marginTop: spacing.md }}>
-              Sign up once, then choose whether you own a restaurant or are joining a team.
+              {t('auth.signUp.subtitle')}
             </Text>
 
             <GlassPanel>
@@ -148,13 +154,13 @@ export default function SignUp() {
 
               <View style={{ gap: spacing.lg }}>
                 <FormField
-                  label="Full name"
+                  label={t('auth.field.fullNameLabel')}
                   value={name}
                   onChangeText={(value) => {
                     setName(value);
                     if (error) setError(null);
                   }}
-                  placeholder="Yusif Mamedov"
+                  placeholder={t('auth.field.fullNamePlaceholder')}
                   focused={focusedField === 'name'}
                   hasError={error != null}
                   onFocus={() => setFocusedField('name')}
@@ -168,13 +174,13 @@ export default function SignUp() {
                 />
 
                 <FormField
-                  label="Email"
+                  label={t('auth.field.emailLabel')}
                   value={email}
                   onChangeText={(value) => {
                     setEmail(value);
                     if (error) setError(null);
                   }}
-                  placeholder="you@restaurant.com"
+                  placeholder={t('auth.field.emailPlaceholder')}
                   focused={focusedField === 'email'}
                   hasError={error != null}
                   onFocus={() => setFocusedField('email')}
@@ -189,13 +195,13 @@ export default function SignUp() {
                 />
 
                 <FormField
-                  label="Password"
+                  label={t('auth.field.passwordLabel')}
                   value={password}
                   onChangeText={(value) => {
                     setPassword(value);
                     if (error) setError(null);
                   }}
-                  placeholder="Create a strong password"
+                  placeholder={t('auth.signUp.passwordPlaceholder')}
                   focused={focusedField === 'password'}
                   hasError={error != null}
                   onFocus={() => setFocusedField('password')}
@@ -210,13 +216,13 @@ export default function SignUp() {
                 />
 
                 <FormField
-                  label="Confirm password"
+                  label={t('auth.field.confirmPasswordLabel')}
                   value={confirmPassword}
                   onChangeText={(value) => {
                     setConfirmPassword(value);
                     if (error) setError(null);
                   }}
-                  placeholder="Repeat your password"
+                  placeholder={t('auth.field.confirmPasswordPlaceholder')}
                   focused={focusedField === 'confirmPassword'}
                   hasError={error != null}
                   onFocus={() => setFocusedField('confirmPassword')}
@@ -253,28 +259,28 @@ export default function SignUp() {
 
               <View style={{ marginTop: spacing.xl }}>
                 <PrimaryButton
-                  label="Create account"
+                  label={t('auth.signUp.submit')}
                   onPress={handleSignUp}
                   loading={signUpMutation.isPending}
-                  icon={ArrowRight}
+                  icon={ForwardArrow}
                   testID="sign-up-button"
                 />
               </View>
               <Text style={{ ...typography.caption, color: colors.text.tertiary, textAlign: 'center', marginTop: spacing.lg }}>
-                By creating an account, you agree to the{' '}
-                <Text onPress={() => router.push('/terms')} style={{ color: colors.text.primary, textDecorationLine: 'underline' }}>Terms</Text>
-                {' '}and acknowledge the{' '}
-                <Text onPress={() => router.push('/privacy')} style={{ color: colors.text.primary, textDecorationLine: 'underline' }}>Privacy Policy</Text>.
+                {t('auth.signUp.legalAgree')}{' '}
+                <Text onPress={() => router.push('/terms')} style={{ color: colors.text.primary, textDecorationLine: 'underline' }}>{t('auth.signUp.termsLink')}</Text>
+                {' '}{t('auth.signUp.legalAnd')}{' '}
+                <Text onPress={() => router.push('/privacy')} style={{ color: colors.text.primary, textDecorationLine: 'underline' }}>{t('legal.privacyTitle')}</Text>.
               </Text>
             </GlassPanel>
 
             <View style={{ marginTop: spacing.xl, alignItems: 'center', gap: spacing.sm }}>
               <Text style={{ ...typography.bodySmall, color: colors.text.tertiary }}>
-                Already have an account?
+                {t('auth.signUp.alreadyHaveAccount')}
               </Text>
               <Pressable onPress={() => router.replace('/sign-in')} testID="sign-in-link">
                 <Text style={{ ...typography.h4, color: colors.brand.primaryLight }}>
-                  Sign in instead
+                  {t('auth.signUp.signInInstead')}
                 </Text>
               </Pressable>
             </View>

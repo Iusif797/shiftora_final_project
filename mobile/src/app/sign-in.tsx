@@ -4,19 +4,30 @@ import { useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { ArrowRight, LogIn } from 'lucide-react-native';
+import { directionalIcon } from '@/components/ui/directional-icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthBackground, GlassPanel } from '@/components/app-shell';
 import { AccentBadge, PrimaryButton, SecondaryButton } from '@/components/buttons';
+import { LanguageSwitcher } from '@/components/language-switcher';
 import { FormField } from '@/components/form-field';
 import { authClient } from '@/lib/auth/auth-client';
 import { resolvePostAuthPath } from '@/lib/auth/post-auth';
 import { useInvalidateSession } from '@/lib/auth/use-session';
+import { useI18n, useT } from '@/i18n/I18nProvider';
+import { trailingText } from '@/i18n/rtl-styles';
+import { useKeyboard } from '@/hooks/use-keyboard';
 import { colors, radius, spacing, typography } from '@/theme';
+
+/** "Continue" arrow — a directional affordance, so it flips under RTL. */
+const ForwardArrow = directionalIcon(ArrowRight);
 
 type FocusedField = 'email' | 'password' | null;
 
 export default function SignIn() {
+  const t = useT();
+  const { isRTL } = useI18n();
   const insets = useSafeAreaInsets();
+  const { isKeyboardVisible, keyboardHeight } = useKeyboard();
   const invalidateSession = useInvalidateSession();
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -30,7 +41,7 @@ export default function SignIn() {
     const nextPath = await resolvePostAuthPath();
 
     if (!nextPath) {
-      setError('Unable to start your session. Try again.');
+      setError(t('auth.error.sessionStartFailed'));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
@@ -48,7 +59,7 @@ export default function SignIn() {
       }),
     onSuccess: async (result) => {
       if (result.error) {
-        setError(result.error.message || 'Invalid email or password');
+        setError(result.error.message || t('auth.error.invalidCredentials'));
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         return;
       }
@@ -56,7 +67,7 @@ export default function SignIn() {
       await finishAuth();
     },
     onError: () => {
-      setError('Network error. Check your connection and try again.');
+      setError(t('auth.error.networkGeneric'));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     },
   });
@@ -65,19 +76,19 @@ export default function SignIn() {
     const trimmedEmail = email.trim();
 
     if (!trimmedEmail) {
-      setError('Enter your email to continue');
+      setError(t('auth.error.emailRequired'));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
 
     if (!isValidEmail(trimmedEmail)) {
-      setError('Enter a valid email address');
+      setError(t('auth.error.emailInvalid'));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
 
     if (!password) {
-      setError('Enter your password');
+      setError(t('auth.error.passwordRequired'));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
@@ -94,26 +105,35 @@ export default function SignIn() {
           contentContainerStyle={{
             flexGrow: 1,
             paddingHorizontal: spacing.xxl,
-            paddingTop: insets.top + spacing.sm,
-            paddingBottom: insets.bottom + spacing.xxxl,
+                paddingTop: insets.top + (isKeyboardVisible ? spacing.xs : spacing.sm),
+                paddingBottom: insets.bottom + (isKeyboardVisible ? Math.max(keyboardHeight, 260) + spacing.xl : spacing.xxxl),
           }}
           keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
           testID="sign-in-screen"
         >
-          <SecondaryButton label="Back" onPress={() => router.replace('/welcome')} testID="back-button" />
+          {/* Language stays reachable before sign-in — someone who cannot read
+              the form is exactly who needs it. */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+            <View style={{ flex: 1 }}>
+              <SecondaryButton label={t('common.back')} onPress={() => router.replace('/welcome')} testID="back-button" />
+            </View>
+            <LanguageSwitcher testID="sign-in-language-switcher" />
+          </View>
 
-          <View style={{ flex: 1, justifyContent: 'center', paddingTop: spacing.xxxl }}>
-            <AccentBadge label="Welcome back" color={colors.brand.gold} tint={colors.warning.muted} />
+          <View style={{ flex: 1, justifyContent: isKeyboardVisible ? 'flex-start' : 'center', paddingTop: isKeyboardVisible ? spacing.md : spacing.xxxl }}>
+            <AccentBadge label={t('auth.signIn.badge')} color={colors.brand.gold} tint={colors.warning.muted} />
 
             <Text style={{ ...typography.h1, color: colors.text.primary, marginTop: spacing.xl }}>
-              Sign in to Shiftora
+              {t('auth.signIn.title')}
             </Text>
             <Text style={{ ...typography.body, color: colors.text.secondary, marginTop: spacing.md }}>
-              Use your email and password to enter your workspace.
+              {t('auth.signIn.subtitle')}
             </Text>
 
             <GlassPanel>
+                  {!isKeyboardVisible && (
               <View
                 style={{
                   width: 72,
@@ -131,15 +151,16 @@ export default function SignIn() {
                 <LogIn color={colors.brand.secondary} size={28} strokeWidth={1.9} />
               </View>
 
-              <View style={{ gap: spacing.lg }}>
+                                )}
+<View style={{ gap: spacing.lg }}>
                 <FormField
-                  label="Email"
+                  label={t('auth.field.emailLabel')}
                   value={email}
                   onChangeText={(value) => {
                     setEmail(value);
                     if (error) setError(null);
                   }}
-                  placeholder="you@restaurant.com"
+                  placeholder={t('auth.field.emailPlaceholder')}
                   focused={focusedField === 'email'}
                   hasError={error != null}
                   onFocus={() => setFocusedField('email')}
@@ -154,13 +175,13 @@ export default function SignIn() {
                 />
 
                 <FormField
-                  label="Password"
+                  label={t('auth.field.passwordLabel')}
                   value={password}
                   onChangeText={(value) => {
                     setPassword(value);
                     if (error) setError(null);
                   }}
-                  placeholder="Enter your password"
+                  placeholder={t('auth.signIn.passwordPlaceholder')}
                   focused={focusedField === 'password'}
                   hasError={error != null}
                   onFocus={() => setFocusedField('password')}
@@ -175,7 +196,9 @@ export default function SignIn() {
                   testID="password-input"
                 />
                 <Pressable onPress={() => router.push('/forgot-password')} testID="forgot-password-link" accessibilityRole="link">
-                  <Text style={{ ...typography.bodySmall, color: colors.brand.primaryLight, textAlign: 'right' }}>Forgot password?</Text>
+                  <Text style={{ ...typography.bodySmall, color: colors.brand.primaryLight, ...trailingText(isRTL) }}>
+                    {t('auth.field.forgotPassword')}
+                  </Text>
                 </Pressable>
               </View>
 
@@ -200,10 +223,10 @@ export default function SignIn() {
 
               <View style={{ marginTop: spacing.xl }}>
                 <PrimaryButton
-                  label="Continue"
+                  label={t('auth.signIn.submit')}
                   onPress={handleSignIn}
                   loading={signInMutation.isPending}
-                  icon={ArrowRight}
+                  icon={ForwardArrow}
                   testID="sign-in-button"
                 />
               </View>
@@ -211,11 +234,11 @@ export default function SignIn() {
 
             <View style={{ marginTop: spacing.xl, alignItems: 'center', gap: spacing.sm }}>
               <Text style={{ ...typography.bodySmall, color: colors.text.tertiary }}>
-                New to Shiftora?
+                {t('auth.signIn.newToShiftora')}
               </Text>
               <Pressable onPress={() => router.push('/sign-up')} testID="sign-up-link">
                 <Text style={{ ...typography.h4, color: colors.brand.primaryLight }}>
-                  Create account
+                  {t('auth.signIn.createAccount')}
                 </Text>
               </Pressable>
             </View>
